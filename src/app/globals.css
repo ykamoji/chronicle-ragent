@@ -403,6 +403,127 @@ button:active {
   }
 }
 
+/* Agent Reasoning Steps */
+.agent-steps-container {
+  max-width: 85%;
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--agent-msg-bg);
+  border: 1px solid var(--panel-glass-border);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.agent-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.agent-step.step {
+  padding: 4px 10px;
+}
+
+.step-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.step-icon {
+  flex-shrink: 0;
+  font-size: 0.9rem;
+}
+
+.step-text {
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.step-action {
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.agent-step.tool .step-text {
+  font-family: 'Courier New', monospace;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.observation-text {
+  font-size: 0.78rem;
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.error-text {
+  color: #ff4d4d;
+}
+
+.agent-step.loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+.reasoning-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--accent-cyan);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: opacity 0.2s;
+}
+
+.reasoning-toggle-btn:hover {
+  opacity: 0.8;
+}
+
+.agent-steps-container.historical {
+  margin-top: 8px;
+  margin-left: 12px;
+  background: rgba(0, 0, 0, 0.03);
+  max-width: 90%;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Confirmation Dialog */
 .dialog-overlay {
   position: fixed;

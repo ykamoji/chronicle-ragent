@@ -29,21 +29,38 @@ export function SessionProvider({ children }) {
         setCurrentSummaries(data.summary || []);
 
         if (data.chat_logs && data.chat_logs.length > 0) {
-          // If the message is a structured object, use it directly.
-          // Filter out internal hidden steps for the main chat UI.
-          const parsedMsgs = data.chat_logs
-            .filter(msg => typeof msg === 'object' && !msg.is_hidden)
-            .map((msg) => {
-              if (typeof msg === 'string') {
-                // Fallback for legacy strings if they slip through
-                const colonIdx = msg.indexOf(": ");
-                return colonIdx !== -1 ? {
-                  role: msg.substring(0, colonIdx).toLowerCase(),
-                  content: msg.substring(colonIdx + 2),
-                } : { role: "system", content: msg };
+          const parsedMsgs = [];
+          let pendingSteps = [];
+
+          data.chat_logs.forEach((msg) => {
+            if (typeof msg !== 'object') return;
+
+            if (msg.is_hidden) {
+              const content = msg.content || "";
+              if (content.startsWith("Thought:")) {
+                const thoughtMatch = content.match(/Thought:\s*(.*?)(?=Action:|$)/s);
+                const actionMatch = content.match(/Action:\s*(\w+)\[(.*?)\]/s);
+                pendingSteps.push({
+                  type: "thought",
+                  content: thoughtMatch ? thoughtMatch[1].trim() : content,
+                  action: actionMatch ? `${actionMatch[1]}[${actionMatch[2]}]` : null
+                });
+              } else if (content.startsWith("Observation:")) {
+                pendingSteps.push({
+                  type: "observation",
+                  content: content.replace("Observation: ", "").trim()
+                });
               }
-              return msg;
-            });
+            } else {
+              // Visible message
+              const message = { ...msg };
+              if (msg.role === "agent") {
+                message.steps = [...pendingSteps];
+                pendingSteps = [];
+              }
+              parsedMsgs.push(message);
+            }
+          });
           setMessages(parsedMsgs);
         } else {
           setMessages([]);

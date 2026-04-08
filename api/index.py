@@ -2,9 +2,9 @@ from dotenv import load_dotenv
 load_dotenv()
 import time
 import hashlib
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
-from api.agent.orchestrator import run_agent
+from api.agent.orchestrator import run_agent_stream
 from api.agent.memory import memory
 from api.ingestion.parser import extract_text_from_pdf, chunk_text, chunk_by_chapter
 from api.ingestion.extractor import extract_metadata
@@ -34,7 +34,7 @@ def health_check():
 
 @app.route("/query", methods=["POST"])
 def query_agent():
-    """Hits the main ReAct agent with a user query."""
+    """Hits the main ReAct agent with a user query, streaming steps via SSE."""
     if not mongo.client:
         return jsonify({"error": "MongoDB is not connected. Agent cannot retrieve data."}), 503
         
@@ -48,10 +48,17 @@ def query_agent():
     if not session_id:
         session_id = memory.create_conversation()
 
-    logger.info(f"Starting agent run for session: {session_id}")
-    answer = run_agent(session_id, user_query)
-    
-    return jsonify({"answer": answer, "session_id": session_id})
+    logger.info(f"Starting agent stream for session: {session_id}")
+
+    def generate():
+        for event_json in run_agent_stream(session_id, user_query):
+            yield f"data: {event_json}\n\n"
+
+    return Response(generate(), content_type='text/event-stream', headers={
+        'Cache-Control': 'no-cache',
+        'X-Accel-Buffering': 'no',
+        'Connection': 'keep-alive'
+    })
 
 
 def process_file_background(text_content: str, session_id: str):

@@ -1,12 +1,16 @@
 import os
 import re
 import logging
+import time
 from google import genai
 from google.genai import types
 from api.agent.tools import TOOLS
 from api.agent.memory import memory
 
 logger = logging.getLogger(__name__)
+
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("google_genai.models").setLevel(logging.WARNING)
 
 SYSTEM_PROMPT = """
 You are an intelligent reasoning agent with access to a database of story documents.
@@ -41,7 +45,7 @@ def extract_action(text: str):
         return match.group(1), match.group(2)
     return None, None
 
-def run_agent(session_id: str, query: str, max_steps: int = 5) -> str:
+def run_agent(session_id: str, query: str, max_steps: int = 10) -> str:
     """Executes the ReAct loop until 'finish' is called or max_steps is reached."""
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -75,7 +79,7 @@ def run_agent(session_id: str, query: str, max_steps: int = 5) -> str:
         try:
             # Note: We append 'Thought:' at the end to encourage the model to start reasoning
             response = client.models.generate_content(
-                model='gemini-2.0-flash',
+                model='gemma-4-31b-it',
                 contents=current_prompt + "Thought:",
                 config=types.GenerateContentConfig(
                     temperature=0.2,
@@ -122,6 +126,8 @@ def run_agent(session_id: str, query: str, max_steps: int = 5) -> str:
         obs_text = f"Observation: {observation}\n"
         current_prompt += obs_text
         memory.add_message(session_id, "System", obs_text.strip(), is_hidden=True)
+
+        time.sleep(10)
 
     final_msg = "Agent reached maximum steps without finding a final answer."
     logger.warning(final_msg)

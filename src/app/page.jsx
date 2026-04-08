@@ -11,7 +11,7 @@ export default function Home() {
   const chatWindowRef = useRef(null);
 
   // Automatically routes through next.config.mjs rewrites to the FastAPI server on 8000
-  const API_URL = "/api";
+  const API_URL = "";
 
   // Auto-scroll chat
   useEffect(() => {
@@ -40,7 +40,7 @@ export default function Home() {
       });
 
       if (!res.ok) throw new Error("API request failed");
-      
+
       const data = await res.json();
       if (!sessionId) setSessionId(data.session_id);
 
@@ -73,8 +73,8 @@ export default function Home() {
         body: formData,
       });
       if (!res.ok) throw new Error("Upload failed");
-      
-      setUploadStatus(`Ingesting ${file.name}... (Background Task limits apply)`);
+
+      setUploadStatus(`Ingesting ${file.name}...`);
     } catch (err) {
       console.error(err);
       setUploadStatus("Failed to upload.");
@@ -99,7 +99,7 @@ export default function Home() {
               <p>Ask about characters, summaries, or specific text segments.</p>
             </div>
           )}
-          
+
           {messages.map((msg, index) => (
             <div key={index} className={`chat-bubble ${msg.role}`}>
               {msg.content.split('\n').map((line, i) => (
@@ -138,22 +138,22 @@ export default function Home() {
         <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
           Upload PDF or text files to build the agent's knowledge base.
         </p>
-        
-        <div 
+
+        <div
           className="file-drop-zone"
           onClick={() => document.getElementById('file-upload').click()}
         >
-          <input 
-            type="file" 
+          <input
+            type="file"
             id="file-upload"
-            style={{ display: "none" }} 
+            style={{ display: "none" }}
             accept=".pdf,.txt"
             onChange={handleFileUpload}
           />
           <p>📄 Click to Upload Document</p>
           <span style={{ fontSize: "0.8rem" }}>Supports: PDF, TXT</span>
         </div>
-        
+
         {uploadStatus && (
           <div style={{ padding: "12px", background: "rgba(0,210,255,0.1)", borderRadius: "8px", fontSize: "0.9rem" }}>
             {uploadStatus}

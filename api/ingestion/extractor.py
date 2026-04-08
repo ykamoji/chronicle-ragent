@@ -11,7 +11,7 @@ def extract_metadata(chunk_text: str) -> dict:
     
     prompt = f"""
     Given the following text segment, perform three tasks:
-    1. Write a 1-2 sentence summary.
+    1. Write a 7-10 sentence summary.
     2. Identify the likely chapter name or number. If none is found, return "Unknown".
     3. Make a list of character names mentioned in this segment.
     
@@ -24,9 +24,8 @@ def extract_metadata(chunk_text: str) -> dict:
 
     client = genai.Client(api_key=api_key)
     
-    # gemini-2.0-flash is current recommended small model
     response = client.models.generate_content(
-        model='gemini-2.0-flash',
+        model='gemma-4-31b-it',
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.1,

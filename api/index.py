@@ -1,11 +1,12 @@
 from dotenv import load_dotenv
 load_dotenv()
-
+import time
+import hashlib
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from api.agent.orchestrator import run_agent
 from api.agent.memory import memory
-from api.ingestion.parser import extract_text_from_pdf, chunk_text
+from api.ingestion.parser import extract_text_from_pdf, chunk_text, chunk_by_chapter
 from api.ingestion.extractor import extract_metadata
 from api.ingestion.embedder import get_embedding
 from api.db.mongo import mongo
@@ -13,10 +14,15 @@ import logging
 import os
 import shutil
 import threading
+from tqdm import tqdm
 
 # Basic Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Hide verbose HTTP and GenAI info logs
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("google_genai.models").setLevel(logging.WARNING)
 
 app = Flask(__name__)
 # Allow CORS from everywhere for Next.js proxy/LAN interaction
@@ -51,33 +57,69 @@ def query_agent():
 def process_file_background(text_content: str):
     """Background task to chunk, embed, and store document segments."""
     try:
-        # Pymongo isn't strictly thread-safe in complex ops but typical singleton inserts are often fine. 
-        # For production robustness, fetching a fresh collection object per thread is safer.
         collection = mongo.get_collection()
         if collection is None:
             logger.error("MongoDB not connected. Aborting ingestion.")
             return
 
-        chunks = chunk_text(text_content, target_tokens=400)
-        logger.info(f"Text parsed into {len(chunks)} chunks.")
+        chapters = chunk_by_chapter(text_content)
+        logger.info(f"Text parsed into {len(chapters)} chapters for metadata extraction.")
 
-        for i, chunk in enumerate(chunks):
-            logger.info(f"Processing chunk {i+1}/{len(chunks)}...")
+        chapter_hashes = []
+
+        # Phase 1: Metadata Extraction
+        for i, chapter_text in enumerate(tqdm(chapters, desc="Extracting Metadata")):
+            c_hash = hashlib.sha256(chapter_text.encode('utf-8')).hexdigest()
+            chapter_hashes.append(c_hash)
+            
+            existing = collection.find_one({"chapter_hash": c_hash})
+            if existing:
+                logger.info(f"Chapter {i+1} already in DB. Skipping metadata extraction.")
+                continue
+
             try:
-                metadata = extract_metadata(chunk)
-                embedding = get_embedding(chunk)
+                metadata = extract_metadata(chapter_text)
+                sub_chunks = chunk_text(chapter_text, target_tokens=500)
                 
-                doc = {
-                    "text": chunk,
-                    "embedding": embedding,
-                    "summary": metadata.get("summary", ""),
-                    "chapter": metadata.get("chapter", "Unknown"),
-                    "characters": metadata.get("characters", []),
-                }
-                collection.insert_one(doc)
+                for j, sub_chunk in enumerate(sub_chunks):
+                    doc = {
+                        "text": sub_chunk,
+                        "embedding": None,
+                        "summary": metadata.get("summary", ""),
+                        "chapter": metadata.get("chapter", "Unknown"),
+                        "characters": metadata.get("characters", []),
+                        "parent_chapter_index": i,
+                        "chapter_hash": c_hash
+                    }
+                    collection.insert_one(doc)
+                
+                time.sleep(20)
             except Exception as e:
-                logger.error(f"Failed processing chunk {i}: {e}")
+                logger.error(f"Failed processing chapter {i}: {e}")
 
+        # Phase 2: Embedding Generation & Retries
+        logger.info("Phase 2: Generating embeddings...")
+        missing_docs = list(collection.find({"chapter_hash": {"$in": chapter_hashes}, "embedding": None}))
+        logger.info(f"Found {len(missing_docs)} chunks needing embeddings.")
+        
+        for doc in tqdm(missing_docs, desc="Generating Embeddings"):
+            doc_id = doc["_id"]
+            text_to_embed = doc["text"]
+            success = False
+            for attempt in range(3):
+                try:
+                    emb = get_embedding(text_to_embed)
+                    collection.update_one({"_id": doc_id}, {"$set": {"embedding": emb}})
+                    success = True
+                    break
+                except Exception as e:
+                    logger.warning(f"Embedding failed (Attempt {attempt+1}/3) for doc {doc_id}: {e}")
+                    time.sleep(5)
+            
+            if not success:
+                logger.error(f"Failed to generate embedding for doc {doc_id} after 3 attempts.")
+            
+            time.sleep(20)
         logger.info("Ingestion complete.")
     except Exception as e:
         logger.error(f"Ingestion pipeline failed: {e}")

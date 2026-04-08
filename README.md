@@ -29,8 +29,7 @@ Designed for ingesting text or PDF documents into a MongoDB Atlas Vector Store, 
    ```env
    # .env
    MONGO_URI="mongodb+srv://<user>:<pwd>@cluster.../?retryWrites=true&w=majority"
-   MONGO_DB_NAME="chronicle_rag"
-   MONGO_COLLECTION_NAME="documents"
+   MONGO_DB_NAME="chronicle"
    GEMINI_API_KEY="your_api_key_here"
    ```
 

@@ -43,7 +43,7 @@ def tool_character_lookup(name: str) -> str:
     """Looks up documents mentioning a specific character by name."""
     logger.info(f"Running character lookup for: {name}")
     try:
-        collection = mongo.get_collection()
+        collection = mongo.get_vector_collection()
         if collection is None:
             return "MongoDB is not connected."
             
@@ -69,7 +69,7 @@ def tool_summary(chapter: str) -> str:
     """Retrieves the summary of a specific chapter."""
     logger.info(f"Running summary lookup for chapter: {chapter}")
     try:
-        collection = mongo.get_collection()
+        collection = mongo.get_vector_collection()
         if collection is None:
             return "MongoDB is not connected."
             

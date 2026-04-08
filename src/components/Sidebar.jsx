@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "../context/SessionContext";
+import ConfirmDialog from "./ConfirmDialog";
 
 const API_URL = "";
 
@@ -9,6 +10,7 @@ export default function Sidebar() {
   const [sessionList, setSessionList] = useState([]);
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const { sessionId, loadSession, startNewChat } = useSession();
   const prevSessionIdRef = useRef(null);
   const menuRef = useRef(null);
@@ -25,16 +27,20 @@ export default function Sidebar() {
     }
   };
 
-  const handleDeleteSession = async (e, id) => {
+  const handleDeleteClick = (e, id) => {
     e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this session?")) return;
+    setActiveMenuId(null);
+    setPendingDeleteId(id);
+  };
 
+  const confirmDelete = async () => {
+    const id = pendingDeleteId;
+    setPendingDeleteId(null);
     try {
       const res = await fetch(`${API_URL}/sessions/${id}`, { method: "DELETE" });
       if (res.ok) {
         setSessionList(prev => prev.filter(s => s.session_id !== id));
         if (sessionId === id) startNewChat();
-        setActiveMenuId(null);
       }
     } catch (err) {
       console.error("Failed to delete session", err);
@@ -133,13 +139,21 @@ export default function Sidebar() {
                   <button className="dropdown-item" onClick={(e) => handleDummyAction(e, 'Archive')}> Archive</button>
                   <button className="dropdown-item" onClick={(e) => handleDummyAction(e, 'Share')}> Share</button>
                   <div style={{ height: "1px", background: "var(--panel-glass-border)", margin: "4px 0" }}></div>
-                  <button className="dropdown-item delete" onClick={(e) => handleDeleteSession(e, session.session_id)}>Delete</button>
+                  <button className="dropdown-item delete" onClick={(e) => handleDeleteClick(e, session.session_id)}>Delete</button>
                 </div>
               )}
             </div>
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!pendingDeleteId}
+        title="Delete Session"
+        message="This will permanently delete the session and all associated data. This action cannot be undone."
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDeleteId(null)}
+      />
     </aside>
   );
 }

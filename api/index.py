@@ -57,7 +57,7 @@ def query_agent():
 def process_file_background(text_content: str, session_id: str):
     """Background task to chunk, embed, and store document segments."""
     try:
-        collection = mongo.get_collection()
+        collection = mongo.get_vector_collection()
         if collection is None:
             logger.error("MongoDB not connected. Aborting ingestion.")
             return
@@ -205,7 +205,7 @@ def handle_session(session_id):
     
     elif request.method == "DELETE":
         sess_col = mongo.get_sessions_collection()
-        doc_col = mongo.get_collection()
+        doc_col = mongo.get_vector_collection()
         
         if sess_col is None or doc_col is None:
             return jsonify({"error": "DB not connected"}), 503

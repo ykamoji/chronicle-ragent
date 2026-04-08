@@ -1,10 +1,10 @@
+import os
 import re
 import logging
 from google import genai
 from google.genai import types
 from api.agent.tools import TOOLS
 from api.agent.memory import memory
-from api.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +43,11 @@ def extract_action(text: str):
 
 def run_agent(session_id: str, query: str, max_steps: int = 5) -> str:
     """Executes the ReAct loop until 'finish' is called or max_steps is reached."""
-    if not settings.gemini_api_key:
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
         return "Error: GEMINI_API_KEY is not set."
         
-    client = genai.Client(api_key=settings.gemini_api_key)
+    client = genai.Client(api_key=api_key)
     
     # Initialize conversation if needed
     history = memory.get_history(session_id)

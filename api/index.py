@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from api.agent.orchestrator import run_agent
@@ -6,7 +9,6 @@ from api.ingestion.parser import extract_text_from_pdf, chunk_text
 from api.ingestion.extractor import extract_metadata
 from api.ingestion.embedder import get_embedding
 from api.db.mongo import mongo
-from api.config import settings
 import logging
 import os
 import shutil

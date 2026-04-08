@@ -175,5 +175,28 @@ def ingest_document():
     
     return jsonify({"message": "Document accepted. Ingestion running in the background.", "session_id": session_id})
 
+@app.route("/sessions", methods=["GET"])
+def get_sessions():
+    collection = mongo.get_sessions_collection()
+    if collection is None:
+        return jsonify({"error": "DB not connected"}), 503
+    
+    # Sort descending by upload_time
+    cursor = collection.find({}, {"_id": 0}).sort("upload_time", -1)
+    sessions = list(cursor)
+    return jsonify(sessions)
+
+@app.route("/sessions/<session_id>", methods=["GET"])
+def get_session(session_id):
+    collection = mongo.get_sessions_collection()
+    if collection is None:
+        return jsonify({"error": "DB not connected"}), 503
+        
+    doc = collection.find_one({"session_id": session_id}, {"_id": 0})
+    if not doc:
+        return jsonify({"error": "Session not found"}), 404
+        
+    return jsonify(doc)
+
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=8000, debug=True)

@@ -50,13 +50,19 @@ def run_agent(session_id: str, query: str, max_steps: int = 5) -> str:
     client = genai.Client(api_key=api_key)
     
     # Initialize conversation if needed
-    history = memory.get_history(session_id)
-    if not history:
+    history_objs = memory.get_history(session_id)
+    if not history_objs:
         # We start a new prompt
         prompt = f"{SYSTEM_PROMPT}\n\nUser Question: {query}\n"
     else:
-        # Reconstruct history
-        prompt = f"{SYSTEM_PROMPT}\n\n" + "\n".join(history) + f"\nUser Question: {query}\n"
+        # Reconstruct history for the LLM
+        history_str = ""
+        for msg in history_objs:
+            role = msg["role"].capitalize()
+            content = msg["content"]
+            history_str += f"{role}: {content}\n"
+        
+        prompt = f"{SYSTEM_PROMPT}\n\n{history_str}User Question: {query}\n"
 
     memory.add_message(session_id, "User", query)
     
@@ -86,7 +92,8 @@ def run_agent(session_id: str, query: str, max_steps: int = 5) -> str:
             return f"Agent failed due to LLM error: {e}"
 
         logger.info(f"LLM Response:\n{llm_text}")
-        memory.add_message(session_id, "Agent", llm_text)
+        # Mark LLM reasoning as hidden so it doesn't clutter the user facing chat
+        memory.add_message(session_id, "Agent", llm_text, is_hidden=True)
         current_prompt += llm_text + "\n"
 
         tool_name, tool_arg = extract_action(llm_text)
@@ -99,7 +106,8 @@ def run_agent(session_id: str, query: str, max_steps: int = 5) -> str:
             continue
             
         if tool_name.lower() == "finish":
-            # We are done
+            # This is the final answer, so we add a visible Agent message
+            memory.add_message(session_id, "Agent", tool_arg, is_hidden=False)
             return tool_arg
 
         # Run the tool
@@ -113,7 +121,7 @@ def run_agent(session_id: str, query: str, max_steps: int = 5) -> str:
         # Append observation and loop
         obs_text = f"Observation: {observation}\n"
         current_prompt += obs_text
-        memory.add_message(session_id, "System", obs_text.strip())
+        memory.add_message(session_id, "System", obs_text.strip(), is_hidden=True)
 
     final_msg = "Agent reached maximum steps without finding a final answer."
     logger.warning(final_msg)

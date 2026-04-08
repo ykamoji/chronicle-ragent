@@ -17,13 +17,23 @@ export default function ChatPanel() {
     }
   }, [messages, isLoading]);
 
+  const formatTime = (isoString) => {
+    if (!isoString) return "";
+    try {
+      const date = new Date(isoString);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      return "";
+    }
+  };
+
   const handleSend = async (e) => {
     e?.preventDefault();
     if (!query.trim()) return;
 
     const userQuery = query.trim();
     setQuery("");
-    setMessages((prev) => [...prev, { role: "user", content: userQuery }]);
+    setMessages((prev) => [...prev, { role: "user", content: userQuery, timestamp: new Date().toISOString() }]);
     setIsLoading(true);
 
     try {
@@ -43,7 +53,7 @@ export default function ChatPanel() {
 
       setMessages((prev) => [
         ...prev,
-        { role: "agent", content: data.answer },
+        { role: "agent", content: data.answer, timestamp: new Date().toISOString() },
       ]);
     } catch (err) {
       console.error(err);
@@ -59,7 +69,7 @@ export default function ChatPanel() {
   return (
     <main className="chat-container glass-panel">
       <div style={{ padding: "24px", borderBottom: "1px solid var(--panel-glass-border)" }}>
-        <h1>Chronicle <span style={{ color: "var(--accent-cyan)" }}>Agentic ORB</span></h1>
+        <h1>Chronicle <span style={{ color: "var(--accent-cyan)" }}>Chat</span></h1>
         <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
           Real-time RAG inference powered by ReAct
         </p>
@@ -75,18 +85,27 @@ export default function ChatPanel() {
 
         {messages.map((msg, index) => (
           <div key={index} className={`chat-bubble ${msg.role}`}>
-            {msg.content.split("\n").map((line, i) => (
-              <span key={i}>
-                {line}
-                <br />
-              </span>
-            ))}
+            <div className="chat-content">
+              {msg.content.split("\n").map((line, i) => (
+                <span key={i}>
+                  {line}
+                  <br />
+                </span>
+              ))}
+            </div>
+            {msg.timestamp && (
+              <div className="chat-timestamp" style={{ textAlign: msg.role === 'user' ? 'right' : 'left' }}>
+                {formatTime(msg.timestamp)}
+              </div>
+            )}
           </div>
         ))}
 
         {isLoading && (
           <div className="chat-bubble agent">
-            <div className="loader"></div> Thinking...
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="loader"></div> Thinking...
+            </div>
           </div>
         )}
       </div>
@@ -100,7 +119,7 @@ export default function ChatPanel() {
           disabled={isLoading}
         />
         <button type="submit" disabled={isLoading || !query.trim()}>
-          Send Message
+          Ask
         </button>
       </form>
     </main>

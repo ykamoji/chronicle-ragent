@@ -61,7 +61,7 @@ export default function DocumentHub() {
       </div>
 
       {uploadStatus && (
-        <div style={{ padding: "12px", background: "rgba(0,210,255,0.1)", borderRadius: "8px", fontSize: "0.9rem", marginTop: "16px" }}>
+        <div style={{ padding: "12px", background: "var(--sys-msg-bg)", borderRadius: "8px", fontSize: "0.9rem", marginTop: "16px" }}>
           {uploadStatus}
         </div>
       )}

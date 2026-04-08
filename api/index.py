@@ -54,7 +54,7 @@ def query_agent():
     return jsonify({"answer": answer, "session_id": session_id})
 
 
-def process_file_background(text_content: str):
+def process_file_background(text_content: str, session_id: str):
     """Background task to chunk, embed, and store document segments."""
     try:
         collection = mongo.get_collection()
@@ -79,17 +79,24 @@ def process_file_background(text_content: str):
 
             try:
                 metadata = extract_metadata(chapter_text)
+                
+                chapter_summary = metadata.get("summary", "")
+                if chapter_summary:
+                    sess_col = mongo.get_sessions_collection()
+                    if sess_col is not None:
+                        sess_col.update_one({"session_id": session_id}, {"$push": {"summary": chapter_summary}})
+
                 sub_chunks = chunk_text(chapter_text, target_tokens=500)
                 
                 for j, sub_chunk in enumerate(sub_chunks):
                     doc = {
                         "text": sub_chunk,
                         "embedding": None,
-                        "summary": metadata.get("summary", ""),
                         "chapter": metadata.get("chapter", "Unknown"),
                         "characters": metadata.get("characters", []),
                         "parent_chapter_index": i,
-                        "chapter_hash": c_hash
+                        "chapter_hash": c_hash,
+                        "session_id": session_id
                     }
                     collection.insert_one(doc)
                 
@@ -130,9 +137,13 @@ def ingest_document():
     """Ingests a document. If file is a PDF, routes to the PDF parser. Runs processing in background."""
     file = request.files.get("file")
     raw_text = request.form.get("raw_text")
+    session_id = request.form.get("session_id")
 
     if not file and not raw_text:
         return jsonify({"error": "Must provide either a file or raw_text"}), 400
+
+    if not session_id:
+        session_id = memory.create_conversation()
 
     text_to_process = ""
 
@@ -158,11 +169,11 @@ def ingest_document():
         return jsonify({"error": "Extracted text is empty."}), 400
 
     # Start ingestion in a daemon thread so it runs in background
-    thread = threading.Thread(target=process_file_background, args=(text_to_process,))
+    thread = threading.Thread(target=process_file_background, args=(text_to_process, session_id))
     thread.daemon = True
     thread.start()
     
-    return jsonify({"message": "Document accepted. Ingestion running in the background."})
+    return jsonify({"message": "Document accepted. Ingestion running in the background.", "session_id": session_id})
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=8000, debug=True)

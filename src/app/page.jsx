@@ -66,6 +66,9 @@ export default function Home() {
     setUploadStatus("Uploading...");
     const formData = new FormData();
     formData.append("file", file);
+    if (sessionId) {
+      formData.append("session_id", sessionId);
+    }
 
     try {
       const res = await fetch(`${API_URL}/ingest`, {
@@ -73,6 +76,11 @@ export default function Home() {
         body: formData,
       });
       if (!res.ok) throw new Error("Upload failed");
+      
+      const data = await res.json();
+      if (!sessionId && data.session_id) {
+        setSessionId(data.session_id);
+      }
 
       setUploadStatus(`Ingesting ${file.name}...`);
     } catch (err) {

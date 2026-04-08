@@ -4,7 +4,7 @@ from api.ingestion.embedder import get_embedding
 
 def perform_vector_search(query: str, limit: int = 5) -> List[Dict[str, Any]]:
     """Performs a vector search against MongoDB Atlas using cosine similarity."""
-    collection = mongo.get_collection()
+    collection = mongo.get_vector_collection()
     if collection is None:
         raise ConnectionError("MongoDB is not connected.")
 

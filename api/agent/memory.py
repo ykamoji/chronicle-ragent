@@ -12,24 +12,45 @@ class AgentMemory:
         self.create_conversation_with_id(session_id)
         return session_id
 
-    def get_history(self, session_id: str) -> list[str]:
+    def get_history(self, session_id: str) -> list:
         col = mongo.get_sessions_collection()
         if col is None: return []
         doc = col.find_one({"session_id": session_id})
         if not doc:
             return []
-        return doc.get("chat_logs", [])
+        
+        # Merge legacy chat_logs with new messages if needed, or just return messages
+        messages = doc.get("messages", [])
+        if not messages:
+            legacy_logs = doc.get("chat_logs", [])
+            # Convert legacy strings to objects for consistency
+            for log in legacy_logs:
+                colon_idx = log.find(": ")
+                if colon_idx != -1:
+                    messages.append({
+                        "role": log[:colon_idx].lower(),
+                        "content": log[colon_idx+2:],
+                        "timestamp": doc.get("upload_time") # Best effort
+                    })
+        return messages
 
-    def add_message(self, session_id: str, role: str, content: str):
+    def add_message(self, session_id: str, role: str, content: str, is_hidden: bool = False):
         col = mongo.get_sessions_collection()
         if col is None: return
         doc = col.find_one({"session_id": session_id})
         if not doc:
             self.create_conversation_with_id(session_id)
         
+        message_obj = {
+            "role": role.lower(),
+            "content": content,
+            "timestamp": datetime.now().isoformat(),
+            "is_hidden": is_hidden
+        }
+
         col.update_one(
             {"session_id": session_id},
-            {"$push": {"chat_logs": f"{role}: {content}"}}
+            {"$push": {"messages": message_obj}}
         )
         
     def create_conversation_with_id(self, session_id: str):
@@ -43,7 +64,7 @@ class AgentMemory:
         doc = {
             "session_id": session_id,
             "upload_time": datetime.now().isoformat(),
-            "chat_logs": [],
+            "messages": [],
             "summary": []
         }
         col.insert_one(doc)

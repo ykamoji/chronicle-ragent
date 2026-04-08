@@ -57,7 +57,7 @@ def query_agent():
 def process_file_background(text_content: str, session_id: str):
     """Background task to chunk, embed, and store document segments."""
     try:
-        collection = mongo.get_collection()
+        collection = mongo.get_vector_collection()
         if collection is None:
             logger.error("MongoDB not connected. Aborting ingestion.")
             return
@@ -174,6 +174,54 @@ def ingest_document():
     thread.start()
     
     return jsonify({"message": "Document accepted. Ingestion running in the background.", "session_id": session_id})
+
+@app.route("/sessions", methods=["GET"])
+def get_sessions():
+    collection = mongo.get_sessions_collection()
+    if collection is None:
+        return jsonify({"error": "DB not connected"}), 503
+    
+    # Sort descending by upload_time
+    cursor = collection.find({}, {"_id": 0}).sort("upload_time", -1)
+    sessions = []
+    for s in cursor:
+        s["chat_logs"] = memory.get_history(s["session_id"])
+        sessions.append(s)
+    return jsonify(sessions)
+
+@app.route("/sessions/<session_id>", methods=["GET", "DELETE"])
+def handle_session(session_id):
+    if request.method == "GET":
+        collection = mongo.get_sessions_collection()
+        if collection is None:
+            return jsonify({"error": "DB not connected"}), 503
+            
+        doc = collection.find_one({"session_id": session_id}, {"_id": 0})
+        if not doc:
+            return jsonify({"error": "Session not found"}), 404
+            
+        doc["chat_logs"] = memory.get_history(session_id)
+        return jsonify(doc)
+    
+    elif request.method == "DELETE":
+        sess_col = mongo.get_sessions_collection()
+        doc_col = mongo.get_vector_collection()
+        
+        if sess_col is None or doc_col is None:
+            return jsonify({"error": "DB not connected"}), 503
+        
+        # 1. Delete session metadata
+        sess_result = sess_col.delete_one({"session_id": session_id})
+        
+        # 2. Delete associated document chunks
+        doc_result = doc_col.delete_many({"session_id": session_id})
+        
+        logger.info(f"Deleted session {session_id}. Removed {doc_result.deleted_count} document chunks.")
+        
+        if sess_result.deleted_count == 0:
+            return jsonify({"error": "Session not found"}), 404
+            
+        return jsonify({"message": "Session deleted successfully"})
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=8000, debug=True)

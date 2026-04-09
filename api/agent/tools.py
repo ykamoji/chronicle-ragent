@@ -53,7 +53,7 @@ def tool_character_lookup(name: str, session_id: str) -> str:
                 "characters": {"$regex": name, "$options": "i"}
             },
             {"text": 1, "chapter": 1, "_id": 0}
-        ).limit(3))
+        ))
         
         if not results:
             return f"No mentions found for character: {name}"
@@ -69,28 +69,32 @@ def tool_character_lookup(name: str, session_id: str) -> str:
         return f"Error looking up character: {str(e)}"
 
 def tool_summary(chapter: str, session_id: str) -> str:
-    """Retrieves the summary of a specific chapter."""
+    """Retrieves the summary of a specific chapter from session metadata."""
     logger.info(f"Running summary lookup for chapter: {chapter} (Session: {session_id})")
     try:
-        collection = mongo.get_vector_collection()
-        if collection is None:
+        session_coll = mongo.get_sessions_collection()
+        if session_coll is None:
             return "MongoDB is not connected."
             
-        results = list(collection.find(
-            {
-                "session_id": session_id,
-                "chapter": {"$regex": chapter, "$options": "i"}
-            },
-            {"summary": 1, "chapter": 1, "_id": 0}
-        ).limit(5))
+        doc = session_coll.find_one({"session_id": session_id}, {"metadata": 1, "_id": 0})
+        if not doc or "metadata" not in doc:
+            return f"No metadata found for session: {session_id}"
+            
+        metadata = doc.get("metadata", [])
+        import re
+        # Filter metadata for matching chapter name (case-insensitive)
+        matches = [
+            m for m in metadata 
+            if re.search(re.escape(chapter), m.get("chapter", ""), re.IGNORECASE)
+        ]
         
-        if not results:
-            return f"No summaries found for chapter: {chapter}"
+        if not matches:
+            return f"No summaries found matching chapter: {chapter}"
             
         rendered = []
-        for r in results:
-            summary = r.get('summary', 'No summary')
-            source = r.get('chapter', 'Unknown source')
+        for m in matches:
+            summary = m.get('summary', 'No summary')
+            source = m.get('chapter', 'Unknown source')
             rendered.append(f"[Source: {source}]\n{summary}")
         return "\n\n".join(rendered)
     except Exception as e:

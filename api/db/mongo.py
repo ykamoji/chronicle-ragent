@@ -15,7 +15,7 @@ class MongoDBClient:
             logger.warning("MONGO_URI is not set. MongoDB will not connect.")
             self.client = None
             self.db = None
-            self.collection = None
+            self.vector = None
             self.sessions = None
             return
             

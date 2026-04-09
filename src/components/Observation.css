@@ -1,17 +1,28 @@
-/* Observation Text */
-.observation-text {
-  font-size: 0.78rem;
-  opacity: 0.7;
-  font-style: italic;
-  display: block;
-  color: var(--text-primary);
+/* Structured Observation Blocks */
+.observation-paragraph {
+  margin-bottom: 12px;
 }
 
-.observation-text.collapsed {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.observation-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.source-header {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--accent-cyan);
+  margin-bottom: 4px;
+  font-weight: 700;
+}
+
+.paragraph-text {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  opacity: 0.9;
+  margin: 0;
+  /* Removal of old italic style for better readability of search results */
+  font-style: normal;
 }
 
 /* Observation Toggle */
@@ -30,6 +41,10 @@
   transition: opacity 0.2s;
   display: inline-flex;
   align-items: center;
+}
+
+.observation-text-wrapper {
+  margin-top: 10px;
 }
 
 .observation-toggle:hover {

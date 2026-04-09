@@ -65,6 +65,9 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
         else:
             history_str = ""
             for msg in history_objs:
+                # Only include visible messages (User questions and final Agent answers)
+                if msg.get("is_hidden"):
+                    continue
                 role = msg["role"].capitalize()
                 content = msg["content"]
                 history_str += f"{role}: {content}\n"
@@ -95,6 +98,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
             # Save the message without Action: finish[...] to avoid redundancy in history
             save_text = re.sub(r"Action:\s*finish\[.*?\]", "", llm_text, flags=re.IGNORECASE | re.DOTALL).strip()
+            save_text = re.sub(r"Thought:\s*finish\[.*?\]", "", save_text, flags=re.IGNORECASE | re.DOTALL).strip()
             memory.add_message(session_id, "Agent", save_text, is_hidden=True)
             current_prompt += llm_text + "\n"
 
@@ -105,12 +109,13 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
             tool_name, tool_arg = extract_action(llm_text)
 
             # Yield thought event
-            yield json.dumps({
-                "type": "thought",
-                "content": thought_text,
-                "action": f"{tool_name}[{tool_arg}]" if tool_name else None,
-                "time": datetime.now().isoformat()
-            })
+            if thought_text:
+                yield json.dumps({
+                    "type": "thought",
+                    "content": thought_text,
+                    "action": f"{tool_name}[{tool_arg}]" if tool_name else None,
+                    "time": datetime.now().isoformat()
+                })
 
             if not tool_name:
                 logger.warning("No action found in LLM response.")

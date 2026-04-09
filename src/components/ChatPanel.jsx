@@ -16,6 +16,7 @@ export const renderStepAction = (action) => {
     return <div className="step-action">{action}</div>;
   }
 
+  const rawTool = match[1];
   const tool = match[1]
     .replace(/_/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
@@ -25,7 +26,9 @@ export const renderStepAction = (action) => {
   return (
     <div className="step-action">
       <span className="step-tool">{tool}</span>
-      <span className="step-chip">{query}</span>
+      {rawTool !== "finish" && (
+        <span className="step-chip">{query}</span>
+      )}
     </div>
   );
 };
@@ -298,8 +301,8 @@ export default function ChatPanel() {
               <div key={i} className={`agent-step ${step.type}`}>
                 {step.type === "thought" && (
                   <div>
-                    <span className="step-text">{step.content}</span>
-                    {renderStepAction(step.action)}
+                    <span className="step-text">{step.content || "Thinking"}</span>
+                    {renderStepAction(step.action) || "Thinking"}
                     <div style={{ opacity: 0.7 }}>{formatTimeWithSeconds(step.time)}</div>
                   </div>
                 )}

@@ -9,11 +9,12 @@ export function SessionProvider({ children }) {
   const [sessionId, setSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [currentSummaries, setCurrentSummaries] = useState([]);
+  const [ingestionProgress, setIngestionProgress] = useState(null);
   const [sessionsCache, setSessionsCache] = useState({});
 
-  const loadSession = useCallback(async (id) => {
-    // Check cache first
-    if (sessionsCache[id]) {
+  const loadSession = useCallback(async (id, forceRefresh = false) => {
+    // Check cache first unless forced to refresh
+    if (!forceRefresh && sessionsCache[id]) {
       const cached = sessionsCache[id];
       setSessionId(id);
       setMessages(cached.messages || []);
@@ -26,24 +27,44 @@ export function SessionProvider({ children }) {
       if (res.ok) {
         const data = await res.json();
         setSessionId(data.session_id);
-        setCurrentSummaries(data.summary || []);
+        setCurrentSummaries(data.metadata || []);
+        setIngestionProgress(data.ingestion_progress || null);
 
         if (data.chat_logs && data.chat_logs.length > 0) {
-          // If the message is a structured object, use it directly.
-          // Filter out internal hidden steps for the main chat UI.
-          const parsedMsgs = data.chat_logs
-            .filter(msg => typeof msg === 'object' && !msg.is_hidden)
-            .map((msg) => {
-              if (typeof msg === 'string') {
-                // Fallback for legacy strings if they slip through
-                const colonIdx = msg.indexOf(": ");
-                return colonIdx !== -1 ? {
-                  role: msg.substring(0, colonIdx).toLowerCase(),
-                  content: msg.substring(colonIdx + 2),
-                } : { role: "system", content: msg };
+          const parsedMsgs = [];
+          let pendingSteps = [];
+
+          data.chat_logs.forEach((msg) => {
+            if (typeof msg !== 'object') return;
+
+            if (msg.is_hidden) {
+              const content = msg.content || "";
+              if (content.startsWith("Thought:")) {
+                const thoughtMatch = content.match(/Thought:\s*(.*?)(?=Action:|$)/s);
+                const actionMatch = content.match(/Action:\s*(\w+)\[(.*?)\]/s);
+                pendingSteps.push({
+                  type: "thought",
+                  content: thoughtMatch ? thoughtMatch[1].trim() : content,
+                  action: actionMatch ? `${actionMatch[1]}[${actionMatch[2]}]` : null,
+                  time: msg.timestamp
+                });
+              } else if (content.startsWith("Observation:")) {
+                pendingSteps.push({
+                  type: "observation",
+                  content: content.replace("Observation: ", "").trim(),
+                  time: msg.timestamp
+                });
               }
-              return msg;
-            });
+            } else {
+              // Visible message
+              const message = { ...msg };
+              if (msg.role === "agent") {
+                message.steps = [...pendingSteps];
+                pendingSteps = [];
+              }
+              parsedMsgs.push(message);
+            }
+          });
           setMessages(parsedMsgs);
         } else {
           setMessages([]);
@@ -58,6 +79,7 @@ export function SessionProvider({ children }) {
     setSessionId(null);
     setMessages([]);
     setCurrentSummaries([]);
+    setIngestionProgress(null);
   }, []);
 
   // Auto-sync local state to cache whenever it changes for the active session
@@ -82,6 +104,8 @@ export function SessionProvider({ children }) {
         setMessages,
         currentSummaries,
         setCurrentSummaries,
+        ingestionProgress,
+        setIngestionProgress,
         loadSession,
         startNewChat,
       }}

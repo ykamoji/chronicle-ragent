@@ -6,6 +6,7 @@ from typing import List
 # Simple token estimation: 1 token is approx 4 characters
 CHARS_PER_TOKEN = 4
 
+
 def extract_text_from_pdf(filepath: str) -> str:
     """Extracts all text from a PDF file."""
     doc = fitz.open(filepath)
@@ -13,6 +14,7 @@ def extract_text_from_pdf(filepath: str) -> str:
     for page in doc:
         text += page.get_text() + "\n"
     return text
+
 
 def chunk_text(text: str, target_tokens: int = 400, overlap_tokens: int = 75) -> List[str]:
     """Splits text into chunks of approximately `target_tokens` size with `overlap_tokens`.
@@ -61,6 +63,7 @@ def chunk_text(text: str, target_tokens: int = 400, overlap_tokens: int = 75) ->
 
     return chunks
 
+
 def chunk_by_chapter(text: str) -> List[str]:
     """Splits text into chapters based on standard 'Chapter' prefixes.
     Falls back to large chunks if chapters are too big or undetected.
@@ -72,7 +75,7 @@ def chunk_by_chapter(text: str) -> List[str]:
 
     for i, match in enumerate(matches):
         start = match.start()
-        end = matches[i+1].start() if i+1 < len(matches) else len(text)
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
 
         chunk = text[start:end].strip()
 

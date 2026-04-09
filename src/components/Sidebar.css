@@ -1,0 +1,136 @@
+/* Sidebar Panel */
+.sidebar-panel {
+  flex: 1;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  gap: 16px;
+  overflow-y: auto;
+  transition: all 0.3s ease;
+}
+
+.sidebar-panel.collapsed {
+  max-width: 80px;
+  min-width: 80px;
+  padding: 20px 10px;
+  overflow: hidden;
+}
+
+/* Sidebar Items */
+.sidebar-item {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  padding-right: 40px !important;
+  /* Make room for the menu button */
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.95rem;
+}
+
+.sidebar-item:hover {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: var(--accent-cyan);
+}
+
+.sidebar-item.active {
+  background: var(--sys-msg-bg);
+  border-color: var(--accent-cyan);
+}
+
+/* Session Menu */
+.session-menu-trigger {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: all 0.2s ease;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.sidebar-item:hover .session-menu-trigger {
+  opacity: 1;
+}
+
+.session-menu-trigger:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  transform: translateY(-50%) scale(1.1);
+}
+
+/* Dropdown Menu */
+.dropdown-menu {
+  position: fixed;
+  min-width: 140px;
+  background: var(--panel-glass-bg);
+  backdrop-filter: blur(20px);
+  /* -webkit-backdrop-filter: blur(20px); */
+  border: 1px solid var(--panel-glass-border);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  padding: 8px;
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-item {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateX(2px);
+}
+
+.dropdown-item.delete {
+  color: #ff4d4d;
+}
+
+.dropdown-item.delete:hover {
+  background: rgba(255, 77, 77, 0.15);
+}
+
+/* New Chat Button */
+.new-chat-btn {
+  width: 100%;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}

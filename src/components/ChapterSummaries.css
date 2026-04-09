@@ -1,0 +1,31 @@
+/* Summary Cards */
+.summary-card {
+  background: var(--agent-msg-bg);
+  border: 1px solid var(--panel-glass-border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  transition: background 0.3s ease;
+}
+
+/* Accordion */
+.accordion-header {
+  padding: 16px;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.04);
+  display: flex;
+  outline: none;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.accordion-header:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.accordion-content {
+  padding: 16px;
+  border-top: 1px solid var(--panel-glass-border);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}

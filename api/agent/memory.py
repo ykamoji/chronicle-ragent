@@ -18,20 +18,8 @@ class AgentMemory:
         doc = col.find_one({"session_id": session_id})
         if not doc:
             return []
-        
-        # Merge legacy chat_logs with new messages if needed, or just return messages
+
         messages = doc.get("messages", [])
-        if not messages:
-            legacy_logs = doc.get("chat_logs", [])
-            # Convert legacy strings to objects for consistency
-            for log in legacy_logs:
-                colon_idx = log.find(": ")
-                if colon_idx != -1:
-                    messages.append({
-                        "role": log[:colon_idx].lower(),
-                        "content": log[colon_idx+2:],
-                        "timestamp": doc.get("upload_time") # Best effort
-                    })
         return messages
 
     def add_message(self, session_id: str, role: str, content: str, is_hidden: bool = False):

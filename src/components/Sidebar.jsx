@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "../context/SessionContext";
 import ConfirmDialog from "./ConfirmDialog";
+import "./Sidebar.css";
 
 const API_URL = "";
 

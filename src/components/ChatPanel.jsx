@@ -4,8 +4,31 @@ import { useSession } from "../context/SessionContext";
 import { CollapsibleObservation } from "./Observation";
 import "./ChatPanel.css";
 
-const API_URL = "";
 const STREAM_URL = "http://127.0.0.1:5328"; // Direct to Flask for SSE streaming (bypasses Next.js proxy buffering)
+
+export const renderStepAction = (action) => {
+  if (!action) return null;
+
+  const match = action.match(/^(\w+)\[(.*)\]$/);
+
+  // fallback (no match)
+  if (!match) {
+    return <div className="step-action">{action}</div>;
+  }
+
+  const tool = match[1]
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const query = match[2];
+
+  return (
+    <div className="step-action">
+      <span className="step-tool">{tool}</span>
+      <span className="step-chip">{query}</span>
+    </div>
+  );
+};
 
 export default function ChatPanel() {
   const [query, setQuery] = useState("");
@@ -26,11 +49,32 @@ export default function ChatPanel() {
     if (!isoString) return "";
     try {
       const date = new Date(isoString);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return date.toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "short",   // Apr, May, etc.
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,    // no AM/PM
+    });
     } catch (e) {
       return "";
     }
   };
+
+  const formatTimeWithSeconds = (isoString) => {
+  if (!isoString) return "";
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false, // ✅ removes AM/PM
+    });
+  } catch (e) {
+    return "";
+  }
+};
 
   const handleSend = async (e) => {
     e?.preventDefault();
@@ -78,15 +122,6 @@ export default function ChatPanel() {
             const event = JSON.parse(jsonStr);
 
             switch (event.type) {
-              // case "step":
-              //   const stepObj = {
-              //     type: "step",
-              //     label: `Step ${event.step}/${event.max_steps}`
-              //   };
-              //   setAgentSteps((prev) => [...prev, stepObj]);
-              //   currentSteps.push(stepObj);
-              //   break;
-
               case "thought":
                 const thoughtObj = {
                   type: "thought",
@@ -184,14 +219,6 @@ export default function ChatPanel() {
         {messages.map((msg, index) => (
           <div key={index} style={{ marginBottom: "16px", display: "flex", flexDirection: "column" }}>
             <div className={`chat-bubble ${msg.role}`}>
-              {msg.role === "agent" && msg.steps && msg.steps.length > 0 && (
-                <button
-                  className="reasoning-toggle-btn"
-                  onClick={() => setExpandedSteps(prev => ({ ...prev, [index]: !prev[index] }))}
-                >
-                  {expandedSteps[index] ? "Hide reasoning" : "Show reasoning"}
-                </button>
-              )}
               <div className="chat-content">
                 {msg.content.split("\n").map((line, i) => (
                   <span key={i}>
@@ -206,37 +233,55 @@ export default function ChatPanel() {
                 </div>
               )}
             </div>
+            {msg.role === "agent" && msg.steps && msg.steps.length > 0 && (
+                <div className="reasoning-toggle">
+                  <button
+                      className="reasoning-toggle-btn"
+                      onClick={() => setExpandedSteps(prev => ({...prev, [index]: !prev[index]}))}
+                  >
+                    View reasoning
+                    <div className={`chevron ${expandedSteps[index] ? "open" : ""}`}>
+                      <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 20 20"
+                          fill="none"
+                      >
+                        <path
+                            d="M6 12L10 8L14 12"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="square"
+                            strokeLinejoin="miter"
+                        />
+                      </svg>
+                    </div>
+                  </button>
+                </div>
+            )}
 
             {/* Collapsible Reasoning Block */}
             {msg.role === "agent" && msg.steps && msg.steps.length > 0 && expandedSteps[index] && (
-              <div className="agent-steps-container historical">
-                {msg.steps.map((step, si) => (
-                  <div key={si} className={`agent-step ${step.type}`}>
-                    {/* {step.type === "step" && <span className="step-label">{step.label}</span>} */}
-                    {step.type === "thought" && (
-                      <div>
-                        {/* <span className="step-icon">💭</span> */}
-                        <span className="step-text">{step.content}</span>
-                        {step.action && <div className="step-action">→ {step.action}</div>}
+                <div className="agent-steps-container historical">
+                  {msg.steps.map((step, si) => (
+                      <div key={si} className={`agent-step ${step.type}`}>
+                        {step.type === "thought" && (
+                            <div>
+                              <span className="step-text">{step.content}</span>
+                              {renderStepAction(step.action)}
+                            </div>
+                        )}
+                        {step.type === "observation" && (
+                            <CollapsibleObservation content={step.content}/>
+                        )}
+                        {step.type === "error" && (
+                            <div>
+                              <span className="step-text error-text">{step.content}</span>
+                            </div>
+                        )}
+                        <div className="step-time">{formatTimeWithSeconds(step.time)}</div>
                       </div>
-                    )}
-                    {/* {step.type === "tool" && (
-                      <div>
-                        <span className="step-icon">🔧</span>
-                        <span className="step-text">{step.tool}[{step.args}]</span>
-                      </div>
-                    )} */}
-                    {step.type === "observation" && (
-                      <CollapsibleObservation content={step.content} />
-                    )}
-                    {step.type === "error" && (
-                      <div>
-                        {/* <span className="step-icon">⚠️</span> */}
-                        <span className="step-text error-text">{step.content}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  ))}
               </div>
             )}
           </div>
@@ -247,21 +292,10 @@ export default function ChatPanel() {
           <div className="agent-steps-container">
             {agentSteps.map((step, i) => (
               <div key={i} className={`agent-step ${step.type}`}>
-                {/* {step.type === "step" && (
-                  <span className="step-label">{step.label}</span>
-                )} */}
                 {step.type === "thought" && (
                   <div>
                     <span className="step-text">{step.content}</span>
-                    {step.action && (
-                      <div className="step-action">→ {step.action}</div>
-                    )}
-                  </div>
-                )}
-                {step.type === "tool" && (
-                  <div>
-                    {/* <span className="step-icon"></span> */}
-                    <span className="step-text">{step.tool}[{step.args}]</span>
+                    {renderStepAction(step.action)}
                   </div>
                 )}
                 {step.type === "observation" && (
@@ -269,7 +303,6 @@ export default function ChatPanel() {
                 )}
                 {step.type === "error" && (
                   <div>
-                    {/* <span className="step-icon">⚠️</span> */}
                     <span className="step-text error-text">{step.content}</span>
                   </div>
                 )}

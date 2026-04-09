@@ -43,12 +43,14 @@ export function SessionProvider({ children }) {
                 pendingSteps.push({
                   type: "thought",
                   content: thoughtMatch ? thoughtMatch[1].trim() : content,
-                  action: actionMatch ? `${actionMatch[1]}[${actionMatch[2]}]` : null
+                  action: actionMatch ? `${actionMatch[1]}[${actionMatch[2]}]` : null,
+                  time: msg.timestamp
                 });
               } else if (content.startsWith("Observation:")) {
                 pendingSteps.push({
                   type: "observation",
-                  content: content.replace("Observation: ", "").trim()
+                  content: content.replace("Observation: ", "").trim(),
+                  time: msg.timestamp
                 });
               }
             } else {

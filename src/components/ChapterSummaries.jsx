@@ -8,7 +8,7 @@ export default function ChapterSummaries({ currentSummaries }) {
         {currentSummaries.map((item, idx) => (
           <details key={idx} className="summary-card accordion">
             <summary className="accordion-header">
-              <strong>{item.chapter !== "" ? item.chapter : `Chapter ${idx + 1}`}</strong>
+              <span>{item.chapter !== "" ? item.chapter : `Chapter ${idx + 1}`}</span>
             </summary>
             <div className="accordion-content">
               <p style={{ marginTop: '8px', color: 'var(--text-secondary)' }}>

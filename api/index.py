@@ -12,7 +12,6 @@ from api.ingestion.embedder import get_embedding
 from api.db.mongo import mongo
 import logging
 import os
-import shutil
 import threading
 from tqdm import tqdm
 
@@ -28,23 +27,25 @@ app = Flask(__name__)
 # Allow CORS from everywhere for Next.js proxy/LAN interaction
 CORS(app)
 
+
 @app.route("/health", methods=["GET"])
 def health_check():
     return jsonify({"status": "healthy", "mongo_connected": mongo.client is not None})
+
 
 @app.route("/query", methods=["POST"])
 def query_agent():
     """Hits the main ReAct agent with a user query, streaming steps via SSE."""
     if not mongo.client:
         return jsonify({"error": "MongoDB is not connected. Agent cannot retrieve data."}), 503
-        
+
     data = request.get_json()
     if not data or "query" not in data:
         return jsonify({"error": "Missing 'query' field in JSON."}), 400
-        
+
     user_query = data.get("query")
     session_id = data.get("session_id")
-    
+
     if not session_id:
         session_id = memory.create_conversation()
 
@@ -166,7 +167,7 @@ def ingest_document():
             # Save temporary file to parse
             temp_path = f"/tmp/{file.filename}"
             file.save(temp_path)
-                
+
             text_to_process = extract_text_from_pdf(temp_path)
             os.remove(temp_path)
         elif file.filename.endswith('.txt'):
@@ -186,15 +187,16 @@ def ingest_document():
     thread = threading.Thread(target=process_file_background, args=(text_to_process, session_id))
     thread.daemon = True
     thread.start()
-    
+
     return jsonify({"message": "Document accepted. Ingestion running in the background.", "session_id": session_id})
+
 
 @app.route("/sessions", methods=["GET"])
 def get_sessions():
     collection = mongo.get_sessions_collection()
     if collection is None:
         return jsonify({"error": "DB not connected"}), 503
-    
+
     # Sort descending by upload_time
     cursor = collection.find({}, {"_id": 0}).sort("upload_time", -1)
     sessions = []
@@ -203,40 +205,42 @@ def get_sessions():
         sessions.append(s)
     return jsonify(sessions)
 
+
 @app.route("/sessions/<session_id>", methods=["GET", "DELETE"])
 def handle_session(session_id):
     if request.method == "GET":
         collection = mongo.get_sessions_collection()
         if collection is None:
             return jsonify({"error": "DB not connected"}), 503
-            
+
         doc = collection.find_one({"session_id": session_id}, {"_id": 0})
         if not doc:
             return jsonify({"error": "Session not found"}), 404
-            
+
         doc["chat_logs"] = doc.get("messages", [])
 
         return jsonify(doc)
-    
+
     elif request.method == "DELETE":
         sess_col = mongo.get_sessions_collection()
         doc_col = mongo.get_vector_collection()
-        
+
         if sess_col is None or doc_col is None:
             return jsonify({"error": "DB not connected"}), 503
-        
+
         # 1. Delete session metadata
         sess_result = sess_col.delete_one({"session_id": session_id})
-        
+
         # 2. Delete associated document chunks
         doc_result = doc_col.delete_many({"session_id": session_id})
-        
+
         logger.info(f"Deleted session {session_id}. Removed {doc_result.deleted_count} document chunks.")
-        
+
         if sess_result.deleted_count == 0:
             return jsonify({"error": "Session not found"}), 404
-            
+
         return jsonify({"message": "Session deleted successfully"})
+
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=8000, debug=True)

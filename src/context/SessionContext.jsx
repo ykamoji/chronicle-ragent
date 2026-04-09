@@ -26,7 +26,7 @@ export function SessionProvider({ children }) {
       if (res.ok) {
         const data = await res.json();
         setSessionId(data.session_id);
-        setCurrentSummaries(data.summary || []);
+        setCurrentSummaries(data.metadata || []);
 
         if (data.chat_logs && data.chat_logs.length > 0) {
           const parsedMsgs = [];

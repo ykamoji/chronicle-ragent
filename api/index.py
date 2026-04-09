@@ -91,7 +91,14 @@ def process_file_background(text_content: str, session_id: str):
                 if chapter_summary:
                     sess_col = mongo.get_sessions_collection()
                     if sess_col is not None:
-                        sess_col.update_one({"session_id": session_id}, {"$push": {"summary": chapter_summary}})
+                        sess_col.update_one({"session_id": session_id}, 
+                        {"$push": 
+                            {"metadata": {
+                                "chapter": metadata.get("chapter", "Unknown"), 
+                                "summary": chapter_summary
+                                }
+                            }
+                        })
 
                 sub_chunks = chunk_text(chapter_text, target_tokens=500)
                 
@@ -207,7 +214,8 @@ def handle_session(session_id):
         if not doc:
             return jsonify({"error": "Session not found"}), 404
             
-        doc["chat_logs"] = memory.get_history(session_id)
+        doc["chat_logs"] = doc.get("messages", [])
+
         return jsonify(doc)
     
     elif request.method == "DELETE":

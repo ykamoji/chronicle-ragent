@@ -5,13 +5,15 @@ export default function ChapterSummaries({ currentSummaries }) {
     <>
       <h2>Chapter Summaries</h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
-        {currentSummaries.map((summary, idx) => (
+        {currentSummaries.map((item, idx) => (
           <details key={idx} className="summary-card accordion">
             <summary className="accordion-header">
-              <strong>Chapter {idx + 1}</strong>
+              <strong>{item.chapter !== "" ? item.chapter : `Chapter ${idx + 1}`}</strong>
             </summary>
             <div className="accordion-content">
-              <p style={{ marginTop: '8px', color: 'var(--text-secondary)' }}>{summary}</p>
+              <p style={{ marginTop: '8px', color: 'var(--text-secondary)' }}>
+                {item.summary}
+              </p>
             </div>
           </details>
         ))}

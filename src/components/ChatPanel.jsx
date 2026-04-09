@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { useSession } from "../context/SessionContext";
+import { CollapsibleObservation } from "./Observation";
 
 const API_URL = "";
 const STREAM_URL = "http://127.0.0.1:5328"; // Direct to Flask for SSE streaming (bypasses Next.js proxy buffering)
@@ -76,14 +77,14 @@ export default function ChatPanel() {
             const event = JSON.parse(jsonStr);
 
             switch (event.type) {
-              case "step":
-                const stepObj = {
-                  type: "step",
-                  label: `Step ${event.step}/${event.max_steps}`
-                };
-                setAgentSteps((prev) => [...prev, stepObj]);
-                currentSteps.push(stepObj);
-                break;
+              // case "step":
+              //   const stepObj = {
+              //     type: "step",
+              //     label: `Step ${event.step}/${event.max_steps}`
+              //   };
+              //   setAgentSteps((prev) => [...prev, stepObj]);
+              //   currentSteps.push(stepObj);
+              //   break;
 
               case "thought":
                 const thoughtObj = {
@@ -183,7 +184,7 @@ export default function ChatPanel() {
           <div key={index} style={{ marginBottom: "16px", display: "flex", flexDirection: "column" }}>
             <div className={`chat-bubble ${msg.role}`}>
               {msg.role === "agent" && msg.steps && msg.steps.length > 0 && (
-                <button 
+                <button
                   className="reasoning-toggle-btn"
                   onClick={() => setExpandedSteps(prev => ({ ...prev, [index]: !prev[index] }))}
                 >
@@ -204,35 +205,32 @@ export default function ChatPanel() {
                 </div>
               )}
             </div>
-            
+
             {/* Collapsible Reasoning Block */}
             {msg.role === "agent" && msg.steps && msg.steps.length > 0 && expandedSteps[index] && (
               <div className="agent-steps-container historical">
                 {msg.steps.map((step, si) => (
                   <div key={si} className={`agent-step ${step.type}`}>
-                    {step.type === "step" && <span className="step-label">{step.label}</span>}
+                    {/* {step.type === "step" && <span className="step-label">{step.label}</span>} */}
                     {step.type === "thought" && (
                       <div>
-                        <span className="step-icon">💭</span>
+                        {/* <span className="step-icon">💭</span> */}
                         <span className="step-text">{step.content}</span>
                         {step.action && <div className="step-action">→ {step.action}</div>}
                       </div>
                     )}
-                    {step.type === "tool" && (
+                    {/* {step.type === "tool" && (
                       <div>
                         <span className="step-icon">🔧</span>
                         <span className="step-text">{step.tool}[{step.args}]</span>
                       </div>
-                    )}
+                    )} */}
                     {step.type === "observation" && (
-                      <div>
-                        <span className="step-icon">👁</span>
-                        <span className="step-text observation-text">{step.content}</span>
-                      </div>
+                      <CollapsibleObservation content={step.content} />
                     )}
                     {step.type === "error" && (
                       <div>
-                        <span className="step-icon">⚠️</span>
+                        {/* <span className="step-icon">⚠️</span> */}
                         <span className="step-text error-text">{step.content}</span>
                       </div>
                     )}
@@ -248,12 +246,11 @@ export default function ChatPanel() {
           <div className="agent-steps-container">
             {agentSteps.map((step, i) => (
               <div key={i} className={`agent-step ${step.type}`}>
-                {step.type === "step" && (
+                {/* {step.type === "step" && (
                   <span className="step-label">{step.label}</span>
-                )}
+                )} */}
                 {step.type === "thought" && (
                   <div>
-                    <span className="step-icon">💭</span>
                     <span className="step-text">{step.content}</span>
                     {step.action && (
                       <div className="step-action">→ {step.action}</div>
@@ -262,19 +259,16 @@ export default function ChatPanel() {
                 )}
                 {step.type === "tool" && (
                   <div>
-                    <span className="step-icon">🔧</span>
+                    {/* <span className="step-icon"></span> */}
                     <span className="step-text">{step.tool}[{step.args}]</span>
                   </div>
                 )}
                 {step.type === "observation" && (
-                  <div>
-                    <span className="step-icon">👁</span>
-                    <span className="step-text observation-text">{step.content}</span>
-                  </div>
+                  <CollapsibleObservation content={step.content} />
                 )}
                 {step.type === "error" && (
                   <div>
-                    <span className="step-icon">⚠️</span>
+                    {/* <span className="step-icon">⚠️</span> */}
                     <span className="step-text error-text">{step.content}</span>
                   </div>
                 )}

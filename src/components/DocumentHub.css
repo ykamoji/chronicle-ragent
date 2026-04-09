@@ -1,0 +1,27 @@
+/* Ingestion Panel */
+.ingestion-panel {
+  flex: 1;
+  min-width: 280px;
+  max-width: 350px;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  gap: 24px;
+  overflow-y: auto;
+}
+
+/* Upload Styles */
+.file-drop-zone {
+  border: 2px dashed var(--accent-blue);
+  border-radius: 12px;
+  padding: 32px;
+  text-align: center;
+  color: var(--text-secondary);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.file-drop-zone:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: var(--accent-cyan);
+}

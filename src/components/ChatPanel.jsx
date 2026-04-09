@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useSession } from "../context/SessionContext";
 import { CollapsibleObservation } from "./Observation";
+import "./ChatPanel.css";
 
 const API_URL = "";
 const STREAM_URL = "http://127.0.0.1:5328"; // Direct to Flask for SSE streaming (bypasses Next.js proxy buffering)

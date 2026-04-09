@@ -1,3 +1,5 @@
+import "./ChapterSummaries.css";
+
 export default function ChapterSummaries({ currentSummaries }) {
   return (
     <>

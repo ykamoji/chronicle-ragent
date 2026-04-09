@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import "./Observation.css";
 
 export const CollapsibleObservation = ({ content }) => {
     const [isExpanded, setIsExpanded] = useState(false);

@@ -1,0 +1,40 @@
+/* Observation Text */
+.observation-text {
+  font-size: 0.78rem;
+  opacity: 0.7;
+  font-style: italic;
+  display: block;
+  /* Ensure it respects line-clamp */
+}
+
+.observation-text.collapsed {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Observation Toggle */
+.observation-toggle {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  padding: 2px 0;
+  margin-top: 2px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  display: inline-flex;
+  align-items: center;
+}
+
+.observation-toggle:hover {
+  opacity: 1;
+  text-decoration: underline;
+  transform: none;
+  box-shadow: none;
+}

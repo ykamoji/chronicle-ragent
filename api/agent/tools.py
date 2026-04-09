@@ -1,6 +1,7 @@
 from api.retrieval.vector_search import perform_vector_search
 from api.retrieval.keyword_search import perform_keyword_search
 from api.db.mongo import mongo
+from api.db.cache import session_cache
 import logging
 
 logger = logging.getLogger(__name__)
@@ -72,15 +73,22 @@ def tool_summary(chapter: str, session_id: str) -> str:
     """Retrieves the summary of a specific chapter from session metadata."""
     logger.info(f"Running summary lookup for chapter: {chapter} (Session: {session_id})")
     try:
-        session_coll = mongo.get_sessions_collection()
-        if session_coll is None:
-            return "MongoDB is not connected."
+        # 1. Check Cache first
+        metadata = session_cache.get_metadata(session_id)
+        
+        if metadata is None:
+            # Fetch from MongoDB if not cached
+            session_coll = mongo.get_sessions_collection()
+            if session_coll is None:
+                return "MongoDB is not connected."
+                
+            doc = session_coll.find_one({"session_id": session_id}, {"metadata": 1, "_id": 0})
+            if not doc or "metadata" not in doc:
+                return f"No metadata found for session: {session_id}"
+                
+            metadata = doc.get("metadata", [])
+            session_cache.set_metadata(session_id, metadata)
             
-        doc = session_coll.find_one({"session_id": session_id}, {"metadata": 1, "_id": 0})
-        if not doc or "metadata" not in doc:
-            return f"No metadata found for session: {session_id}"
-            
-        metadata = doc.get("metadata", [])
         import re
         # Filter metadata for matching chapter name (case-insensitive)
         matches = [

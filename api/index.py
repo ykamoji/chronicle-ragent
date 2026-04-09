@@ -10,6 +10,7 @@ from api.ingestion.parser import extract_text_from_pdf, chunk_text, chunk_by_cha
 from api.ingestion.extractor import extract_metadata
 from api.ingestion.embedder import get_embedding
 from api.db.mongo import mongo
+from api.db.cache import session_cache
 import logging
 import os
 import threading
@@ -218,10 +219,12 @@ def process_file_background(text_content: str, session_id: str):
                 
                 time.sleep(10) # Reduced for better demo
             
-            # Finalize progress
-            sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.phase": "complete"}})
+        # Finalize progress
+        sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.phase": "complete"}})
 
-        logger.info("Ingestion complete.")
+        # Invalidate cache so the next query pulls fresh data from MongoDB
+        session_cache.invalidate(session_id)
+        logger.info("Ingestion complete. Cache invalidated.")
     except Exception as e:
         logger.error(f"Ingestion pipeline failed: {e}")
         sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.phase": "failed", "error": str(e)}})
@@ -314,7 +317,10 @@ def handle_session(session_id):
         # 2. Remove session_id from associated document chunks (don't delete document)
         doc_result = doc_col.update_many({"session_id": session_id}, {"$pull": {"session_id": session_id}})
         
-        logger.info(f"Deleted session {session_id}. Dissociated {doc_result.modified_count} document chunks.")
+        # 3. Invalidate cache
+        session_cache.invalidate(session_id)
+        
+        logger.info(f"Deleted session {session_id}. Dissociated {doc_result.modified_count} document chunks. Cache invalidated.")
 
         if sess_result.deleted_count == 0:
             return jsonify({"error": "Session not found"}), 404

@@ -17,6 +17,16 @@ export const CollapsibleObservation = ({ content }) => {
         }
     }, [content, isExpanded]);
 
+    const extractSources = (text) => {
+        if (!text) return [];
+        const regex = /Source:\s*(Chapter\s*\d+)/gi;
+        const matches = [...text.matchAll(regex)];
+        // Extract the capture group (Chapter X) and uniqify
+        return [...new Set(matches.map(m => m[1]))];
+    };
+
+    const sources = extractSources(content);
+
     return (
         <div className="observation-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
             <span
@@ -32,6 +42,26 @@ export const CollapsibleObservation = ({ content }) => {
                 >
                     {isExpanded ? "Show Less" : "Read More"}
                 </button>
+            )}
+            
+            {sources.length > 0 && (
+                <div className="sources-container">
+                    <span className="sources-label">Sources:</span>
+                    <div className="sources-list">
+                        {sources.map((source, idx) => {
+                            const linkId = source.toLowerCase().replace(/\s+/g, '-');
+                            return (
+                                <a 
+                                    key={idx} 
+                                    href={`#${linkId}`} 
+                                    className="source-link"
+                                >
+                                    {source}
+                                </a>
+                            );
+                        })}
+                    </div>
+                </div>
             )}
         </div>
     );

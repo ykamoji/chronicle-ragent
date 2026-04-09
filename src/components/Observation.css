@@ -38,3 +38,49 @@
   transform: none;
   box-shadow: none;
 }
+
+/* Sources List */
+.sources-container {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  border-left: 2px solid var(--accent-cyan);
+}
+
+.sources-label {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sources-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.source-link {
+  font-size: 0.7rem;
+  color: #fff;
+  background: var(--text-secondary);
+  padding: 2px 8px;
+  border-radius: 12px;
+  text-decoration: none;
+  border: 1px solid var(--text-secondary);
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.source-link:hover {
+  color: #000;
+  background-color: #fff;
+  transform: translateY(-1px);
+  box-shadow: none;
+}

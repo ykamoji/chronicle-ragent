@@ -2,6 +2,7 @@ import os
 import re
 import logging
 import time
+from datetime import datetime
 from google import genai
 from google.genai import types
 from api.agent.tools import TOOLS
@@ -73,9 +74,6 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
         current_prompt = prompt
 
         for step in range(max_steps):
-            # logger.info(f"Agent Step {step + 1}/{max_steps}")
-            # yield json.dumps({"type": "step", "step": step + 1, "max_steps": max_steps})
-
             # Call LLM
             try:
                 response = client.models.generate_content(
@@ -92,10 +90,9 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
             except Exception as e:
                 logger.error(f"LLM call failed: {e}")
                 memory.add_message(session_id, "Agent", f"LLM Error: {e}", is_hidden=True)
-                yield json.dumps({"type": "error", "content": f"LLM error: {e}"})
+                yield json.dumps({"type": "error", "content": f"LLM error: {e}", "time": datetime.now().isoformat()})
                 return
 
-            # logger.info(f"LLM Response:\n{llm_text}")
             # Save the message without Action: finish[...] to avoid redundancy in history
             save_text = re.sub(r"Action:\s*finish\[.*?\]", "", llm_text, flags=re.IGNORECASE | re.DOTALL).strip()
             memory.add_message(session_id, "Agent", save_text, is_hidden=True)
@@ -111,7 +108,8 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
             yield json.dumps({
                 "type": "thought",
                 "content": thought_text,
-                "action": f"{tool_name}[{tool_arg}]" if tool_name else None
+                "action": f"{tool_name}[{tool_arg}]" if tool_name else None,
+                "time": datetime.now().isoformat()
             })
 
             if not tool_name:
@@ -125,16 +123,17 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                 yield json.dumps({
                     "type": "answer",
                     "content": tool_arg,
-                    "session_id": session_id
+                    "session_id": session_id,
+                    "time": datetime.now().isoformat()
                 })
                 return
 
             # Yield tool call event
-            yield json.dumps({"type": "tool", "tool": tool_name, "args": tool_arg})
+            yield json.dumps({"type": "tool", "tool": tool_name, "args": tool_arg, "time": datetime.now().isoformat()})
 
             # Run the tool
             if tool_name in TOOLS:
-                observation = TOOLS[tool_name](tool_arg)
+                observation = TOOLS[tool_name](tool_arg, session_id)
             else:
                 observation = f"System Error: Tool '{tool_name}' not found. Available tools: {', '.join(TOOLS.keys())}, finish"   
 
@@ -146,14 +145,14 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
             # Yield observation summary (truncated for display)
             obs_display = str(observation)[:200] + ("..." if len(str(observation)) > 200 else "")
-            yield json.dumps({"type": "observation", "content": obs_display})
+            yield json.dumps({"type": "observation", "content": obs_display, "time": datetime.now().isoformat()})
 
             time.sleep(10)
 
         final_msg = "Agent reached maximum steps without finding a final answer."
         logger.warning(final_msg)
-        yield json.dumps({"type": "answer", "content": final_msg, "session_id": session_id})
+        yield json.dumps({"type": "answer", "content": final_msg, "session_id": session_id, "time": datetime.now().isoformat()})
 
     except Exception as e:
         logger.error(f"Agent stream error: {e}")
-        yield json.dumps({"type": "error", "content": f"Agent error: {e}"})
+        yield json.dumps({"type": "error", "content": f"Agent error: {e}", "time": datetime.now().isoformat()})

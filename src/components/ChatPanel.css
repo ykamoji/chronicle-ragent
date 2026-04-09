@@ -150,12 +150,12 @@
   padding: 8px 10px;
 }
 
-.reasoning-toggle{
-    display: flex;
-    padding: 0;
-    margin-top: 5px;
-    align-items: center;
-    cursor: pointer;
+.reasoning-toggle {
+  display: flex;
+  padding: 0;
+  margin-top: 5px;
+  align-items: center;
+  cursor: pointer;
 }
 
 .reasoning-toggle-btn {
@@ -201,9 +201,12 @@
 .agent-steps-container.historical::before {
   content: "";
   position: absolute;
-  left: 40px;          /* controls horizontal position */
-  top: 12px;          /* small offset from top */
-  bottom: 12px;       /* small offset from bottom */
+  left: 40px;
+  /* controls horizontal position */
+  top: 12px;
+  /* small offset from top */
+  bottom: 12px;
+  /* small offset from bottom */
   width: 3px;
   background: #e5e7eb;
   border-radius: 2px;

@@ -25,3 +25,96 @@
   background: rgba(0, 0, 0, 0.04);
   border-color: var(--accent-cyan);
 }
+
+/* Ingestion Stepper */
+.ingestion-stepper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 8px 0;
+}
+
+.stepper-rail {
+  position: absolute;
+  left: 9px;
+  top: 24px;
+  bottom: 24px;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  z-index: 0;
+}
+
+.progress-stage {
+  position: relative;
+  z-index: 1;
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+
+.progress-stage.active {
+  opacity: 1;
+}
+
+.progress-stage.completed {
+  opacity: 1;
+}
+
+.stage-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.stage-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--panel-glass-bg);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.active .stage-dot {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 10px var(--accent-cyan);
+  background: var(--accent-cyan);
+}
+
+.completed .stage-dot {
+  border-color: var(--accent-blue);
+  background: var(--accent-blue);
+}
+
+.stage-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.stage-count {
+  font-size: 0.75rem;
+  color: var(--accent-cyan);
+  margin-left: auto;
+  font-family: monospace;
+}
+
+.progress-bar-container {
+  margin-left: 32px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
+  width: 0;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.completed .progress-bar-fill {
+  background: var(--accent-blue);
+}

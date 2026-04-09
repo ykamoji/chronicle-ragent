@@ -50,31 +50,31 @@ export default function ChatPanel() {
     try {
       const date = new Date(isoString);
       return date.toLocaleString("en-GB", {
-      day: "2-digit",
-      month: "short",   // Apr, May, etc.
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,    // no AM/PM
-    });
+        day: "2-digit",
+        month: "short",   // Apr, May, etc.
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,    // no AM/PM
+      });
     } catch (e) {
       return "";
     }
   };
 
   const formatTimeWithSeconds = (isoString) => {
-  if (!isoString) return "";
-  try {
-    const date = new Date(isoString);
-    return date.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false, // ✅ removes AM/PM
-    });
-  } catch (e) {
-    return "";
-  }
-};
+    if (!isoString) return "";
+    try {
+      const date = new Date(isoString);
+      return date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false, // ✅ removes AM/PM
+      });
+    } catch (e) {
+      return "";
+    }
+  };
 
   const handleSend = async (e) => {
     e?.preventDefault();
@@ -126,7 +126,8 @@ export default function ChatPanel() {
                 const thoughtObj = {
                   type: "thought",
                   content: event.content,
-                  action: event.action
+                  action: event.action,
+                  time: event.time
                 };
                 setAgentSteps((prev) => [...prev, thoughtObj]);
                 currentSteps.push(thoughtObj);
@@ -136,7 +137,8 @@ export default function ChatPanel() {
                 const toolObj = {
                   type: "tool",
                   tool: event.tool,
-                  args: event.args
+                  args: event.args,
+                  time: event.time
                 };
                 setAgentSteps((prev) => [...prev, toolObj]);
                 currentSteps.push(toolObj);
@@ -145,7 +147,8 @@ export default function ChatPanel() {
               case "observation":
                 const obsObj = {
                   type: "observation",
-                  content: event.content
+                  content: event.content,
+                  time: event.time
                 };
                 setAgentSteps((prev) => [...prev, obsObj]);
                 currentSteps.push(obsObj);
@@ -159,7 +162,8 @@ export default function ChatPanel() {
               case "error":
                 const errObj = {
                   type: "error",
-                  content: event.content
+                  content: event.content,
+                  time: event.time
                 };
                 setAgentSteps((prev) => [...prev, errObj]);
                 currentSteps.push(errObj);
@@ -234,54 +238,54 @@ export default function ChatPanel() {
               )}
             </div>
             {msg.role === "agent" && msg.steps && msg.steps.length > 0 && (
-                <div className="reasoning-toggle">
-                  <button
-                      className="reasoning-toggle-btn"
-                      onClick={() => setExpandedSteps(prev => ({...prev, [index]: !prev[index]}))}
-                  >
-                    View reasoning
-                    <div className={`chevron ${expandedSteps[index] ? "open" : ""}`}>
-                      <svg
-                          width="20"
-                          height="20"
-                          viewBox="0 0 20 20"
-                          fill="none"
-                      >
-                        <path
-                            d="M6 12L10 8L14 12"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="square"
-                            strokeLinejoin="miter"
-                        />
-                      </svg>
-                    </div>
-                  </button>
-                </div>
+              <div className="reasoning-toggle">
+                <button
+                  className="reasoning-toggle-btn"
+                  onClick={() => setExpandedSteps(prev => ({ ...prev, [index]: !prev[index] }))}
+                >
+                  View reasoning
+                  <div className={`chevron ${expandedSteps[index] ? "open" : ""}`}>
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                    >
+                      <path
+                        d="M6 12L10 8L14 12"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="square"
+                        strokeLinejoin="miter"
+                      />
+                    </svg>
+                  </div>
+                </button>
+              </div>
             )}
 
             {/* Collapsible Reasoning Block */}
             {msg.role === "agent" && msg.steps && msg.steps.length > 0 && expandedSteps[index] && (
-                <div className="agent-steps-container historical">
-                  {msg.steps.map((step, si) => (
-                      <div key={si} className={`agent-step ${step.type}`}>
-                        {step.type === "thought" && (
-                            <div>
-                              <span className="step-text">{step.content}</span>
-                              {renderStepAction(step.action)}
-                            </div>
-                        )}
-                        {step.type === "observation" && (
-                            <CollapsibleObservation content={step.content}/>
-                        )}
-                        {step.type === "error" && (
-                            <div>
-                              <span className="step-text error-text">{step.content}</span>
-                            </div>
-                        )}
-                        <div className="step-time">{formatTimeWithSeconds(step.time)}</div>
+              <div className="agent-steps-container historical">
+                {msg.steps.filter(step => step.type !== "tool").map((step, si) => (
+                  <div key={si} className={`agent-step ${step.type}`}>
+                    {step.type === "thought" && (
+                      <div>
+                        <span className="step-text">{step.content || "Thinking"}</span>
+                        {renderStepAction(step.action)}
                       </div>
-                  ))}
+                    )}
+                    {step.type === "observation" && (
+                      <CollapsibleObservation content={step.content} />
+                    )}
+                    {step.type === "error" && (
+                      <div>
+                        <span className="step-text error-text">{step.content}</span>
+                      </div>
+                    )}
+                    <div className="step-time">{formatTimeWithSeconds(step.time)}</div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -290,27 +294,32 @@ export default function ChatPanel() {
         {/* Live Agent Reasoning Steps */}
         {isLoading && agentSteps.length > 0 && (
           <div className="agent-steps-container">
-            {agentSteps.map((step, i) => (
+            {agentSteps.filter(step => step.type !== "tool").map((step, i) => (
               <div key={i} className={`agent-step ${step.type}`}>
                 {step.type === "thought" && (
                   <div>
                     <span className="step-text">{step.content}</span>
                     {renderStepAction(step.action)}
+                    <div style={{ opacity: 0.7 }}>{formatTimeWithSeconds(step.time)}</div>
                   </div>
                 )}
                 {step.type === "observation" && (
-                  <CollapsibleObservation content={step.content} />
+                  <>
+                    <CollapsibleObservation content={step.content} />
+                    <div style={{ opacity: 0.7 }}>{formatTimeWithSeconds(step.time)}</div>
+                  </>
                 )}
                 {step.type === "error" && (
                   <div>
                     <span className="step-text error-text">{step.content}</span>
+                    <div style={{ opacity: 0.7 }}>{formatTimeWithSeconds(step.time)}</div>
                   </div>
                 )}
               </div>
             ))}
             <div className="agent-step loading">
               <div className="loader"></div>
-              <span className="step-text">Processing...</span>
+              <span className="step-text">Thinking...</span>
             </div>
           </div>
         )}
@@ -318,7 +327,7 @@ export default function ChatPanel() {
         {isLoading && agentSteps.length === 0 && (
           <div className="chat-bubble agent">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div className="loader"></div> Connecting...
+              <div className="loader"></div> Planning...
             </div>
           </div>
         )}

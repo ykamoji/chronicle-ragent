@@ -5,11 +5,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def tool_vector_search(query: str) -> str:
+def tool_vector_search(query: str, session_id: str) -> str:
     """Semantically searches the document text based on meaning."""
-    logger.info(f"Running vector search for: {query}")
+    logger.info(f"Running vector search for: {query} (Session: {session_id})")
     try:
-        results = perform_vector_search(query, limit=3)
+        results = perform_vector_search(query, session_id, limit=3)
         if not results:
             return "No matching documents found in vector search."
         rendered = []
@@ -22,11 +22,11 @@ def tool_vector_search(query: str) -> str:
         logger.error(f"Vector search failed: {e}")
         return f"Error executing vector search: {str(e)}"
 
-def tool_keyword_search(query: str) -> str:
+def tool_keyword_search(query: str, session_id: str) -> str:
     """Searches for exact matches or regex keywords in the documents."""
-    logger.info(f"Running keyword search for: {query}")
+    logger.info(f"Running keyword search for: {query} (Session: {session_id})")
     try:
-        results = perform_keyword_search(query, limit=3)
+        results = perform_keyword_search(query, session_id, limit=3)
         if not results:
             return "No matching documents found in keyword search."
         rendered = []
@@ -39,16 +39,19 @@ def tool_keyword_search(query: str) -> str:
         logger.error(f"Keyword search failed: {e}")
         return f"Error executing keyword search: {str(e)}"
 
-def tool_character_lookup(name: str) -> str:
+def tool_character_lookup(name: str, session_id: str) -> str:
     """Looks up documents mentioning a specific character by name."""
-    logger.info(f"Running character lookup for: {name}")
+    logger.info(f"Running character lookup for: {name} (Session: {session_id})")
     try:
         collection = mongo.get_vector_collection()
         if collection is None:
             return "MongoDB is not connected."
             
         results = list(collection.find(
-            {"characters": {"$regex": name, "$options": "i"}},
+            {
+                "session_id": session_id,
+                "characters": {"$regex": name, "$options": "i"}
+            },
             {"text": 1, "chapter": 1, "_id": 0}
         ).limit(3))
         
@@ -65,16 +68,19 @@ def tool_character_lookup(name: str) -> str:
         logger.error(f"Character lookup failed: {e}")
         return f"Error looking up character: {str(e)}"
 
-def tool_summary(chapter: str) -> str:
+def tool_summary(chapter: str, session_id: str) -> str:
     """Retrieves the summary of a specific chapter."""
-    logger.info(f"Running summary lookup for chapter: {chapter}")
+    logger.info(f"Running summary lookup for chapter: {chapter} (Session: {session_id})")
     try:
         collection = mongo.get_vector_collection()
         if collection is None:
             return "MongoDB is not connected."
             
         results = list(collection.find(
-            {"chapter": {"$regex": chapter, "$options": "i"}},
+            {
+                "session_id": session_id,
+                "chapter": {"$regex": chapter, "$options": "i"}
+            },
             {"summary": 1, "chapter": 1, "_id": 0}
         ).limit(5))
         

@@ -2,7 +2,7 @@ from typing import List, Dict, Any
 from api.db.mongo import mongo
 from api.ingestion.embedder import get_embedding
 
-def perform_vector_search(query: str, limit: int = 5) -> List[Dict[str, Any]]:
+def perform_vector_search(query: str, session_id: str, limit: int = 5) -> List[Dict[str, Any]]:
     """Performs a vector search against MongoDB Atlas using cosine similarity."""
     collection = mongo.get_vector_collection()
     if collection is None:
@@ -19,7 +19,8 @@ def perform_vector_search(query: str, limit: int = 5) -> List[Dict[str, Any]]:
                 "path": "embedding",
                 "queryVector": query_embedding,
                 "numCandidates": limit * 10,
-                "limit": limit
+                "limit": limit,
+                "filter": { "session_id": session_id }
             }
         },
         {

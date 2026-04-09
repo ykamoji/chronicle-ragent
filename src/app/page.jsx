@@ -7,7 +7,13 @@ import DocumentHub from "../components/DocumentHub";
 import ChapterSummaries from "../components/ChapterSummaries";
 
 function AppLayout() {
-  const { currentSummaries } = useSession();
+  const { currentSummaries, ingestionProgress } = useSession();
+
+  const isIngesting = ingestionProgress &&
+    ingestionProgress.phase !== "complete" &&
+    ingestionProgress.phase !== "failed";
+
+  const showSummaries = currentSummaries && currentSummaries.length > 0 && !isIngesting;
 
   return (
     <div className="dashboard-layout">
@@ -16,7 +22,7 @@ function AppLayout() {
       <ChatPanel />
 
       <aside className="ingestion-panel glass-panel">
-        {currentSummaries && currentSummaries.length > 0 ? (
+        {showSummaries ? (
           <ChapterSummaries currentSummaries={currentSummaries} />
         ) : (
           <DocumentHub />

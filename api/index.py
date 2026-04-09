@@ -62,27 +62,94 @@ def query_agent():
     })
 
 
+@app.route("/ingest-progress/<session_id>", methods=["GET"])
+def ingest_progress(session_id):
+    """Streams ingestion progress for a specific session."""
+    def generate():
+        last_progress = None
+        while True:
+            sess_col = mongo.get_sessions_collection()
+            if sess_col is None:
+                yield f"data: {{\"error\": \"DB not connected\"}}\n\n"
+                break
+            
+            doc = sess_col.find_one({"session_id": session_id}, {"ingestion_progress": 1})
+            if not doc or "ingestion_progress" not in doc:
+                # If progress not yet initialized, just wait
+                time.sleep(1)
+                continue
+            
+            progress = doc["ingestion_progress"]
+            
+            # Only send if progress changed
+            if progress != last_progress:
+                import json
+                yield f"data: {json.dumps(progress)}\n\n"
+                last_progress = progress
+            
+            if progress.get("phase") in ["complete", "failed"]:
+                break
+                
+            time.sleep(0.5)
+
+    return Response(generate(), content_type='text/event-stream', headers={
+        'Cache-Control': 'no-cache',
+        'X-Accel-Buffering': 'no',
+        'Connection': 'keep-alive'
+    })
+
+
 def process_file_background(text_content: str, session_id: str):
     """Background task to chunk, embed, and store document segments."""
     try:
-        collection = mongo.get_vector_collection()
-        if collection is None:
+        vector_col = mongo.get_vector_collection()
+        sess_col = mongo.get_sessions_collection()
+        if vector_col is None or sess_col is None:
             logger.error("MongoDB not connected. Aborting ingestion.")
             return
 
+        # Start extraction phase
+        sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress": {"phase": "extraction", "current": 0, "total": 0}}})
+
         chapters = chunk_by_chapter(text_content)
-        logger.info(f"Text parsed into {len(chapters)} chapters for metadata extraction.")
+        total_chapters = len(chapters)
+        logger.info(f"Text parsed into {total_chapters} chapters for metadata extraction.")
+
+        # Update total chapters
+        sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.total": total_chapters}})
 
         chapter_hashes = []
 
         # Phase 1: Metadata Extraction
         for i, chapter_text in enumerate(tqdm(chapters, desc="Extracting Metadata")):
+            # Update current progress
+            sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.current": i + 1}})
+
             c_hash = hashlib.sha256(chapter_text.encode('utf-8')).hexdigest()
             chapter_hashes.append(c_hash)
             
-            existing = collection.find_one({"chapter_hash": c_hash})
+            existing = vector_col.find_one({"chapter_hash": c_hash})
             if existing:
-                logger.info(f"Chapter {i+1} already in DB. Skipping metadata extraction.")
+                logger.info(f"Chapter {i+1} already in DB. Associating with current session.")
+                vector_col.update_many({"chapter_hash": c_hash}, {"$addToSet": {"session_id": session_id}})
+                
+                # Copy metadata from existing session if available
+                chapter_name = existing.get("chapter")
+                existing_sessions = existing.get("session_id", [])
+                if chapter_name and existing_sessions:
+                    # Find a session that has this chapter in its metadata and pull only that record
+                    source_sess_doc = sess_col.find_one({
+                        "session_id": {"$in": existing_sessions},
+                        "metadata.chapter": chapter_name
+                    }, {"metadata.$": 1})
+                    
+                    if source_sess_doc and "metadata" in source_sess_doc:
+                        item_to_copy = source_sess_doc["metadata"][0]
+                        # Push to the current session
+                        sess_col.update_one({"session_id": session_id}, {"$push": {"metadata": item_to_copy}})
+                        logger.info(f"Copied metadata for '{chapter_name}' from an existing session.")
+
+                # We don't skip entirely; we still want to check if embeddings are needed in Phase 2
                 continue
 
             try:
@@ -90,16 +157,14 @@ def process_file_background(text_content: str, session_id: str):
                 
                 chapter_summary = metadata.get("summary", "")
                 if chapter_summary:
-                    sess_col = mongo.get_sessions_collection()
-                    if sess_col is not None:
-                        sess_col.update_one({"session_id": session_id}, 
-                        {"$push": 
-                            {"metadata": {
-                                "chapter": metadata.get("chapter", "Unknown"), 
-                                "summary": chapter_summary
-                                }
+                    sess_col.update_one({"session_id": session_id}, 
+                    {"$push": 
+                        {"metadata": {
+                            "chapter": metadata.get("chapter", "Unknown"), 
+                            "summary": chapter_summary
                             }
-                        })
+                        }
+                    })
 
                 sub_chunks = chunk_text(chapter_text, target_tokens=500)
                 
@@ -111,40 +176,55 @@ def process_file_background(text_content: str, session_id: str):
                         "characters": metadata.get("characters", []),
                         "parent_chapter_index": i,
                         "chapter_hash": c_hash,
-                        "session_id": session_id
+                        "session_id": [session_id]
                     }
-                    collection.insert_one(doc)
+                    vector_col.insert_one(doc)
                 
-                time.sleep(20)
+                time.sleep(10) # Reduced for better demo, original was 20
             except Exception as e:
                 logger.error(f"Failed processing chapter {i}: {e}")
 
         # Phase 2: Embedding Generation & Retries
         logger.info("Phase 2: Generating embeddings...")
-        missing_docs = list(collection.find({"chapter_hash": {"$in": chapter_hashes}, "embedding": None}))
-        logger.info(f"Found {len(missing_docs)} chunks needing embeddings.")
+        missing_docs = list(vector_col.find({"chapter_hash": {"$in": chapter_hashes}, "embedding": None}))
+        total_embeddings = len(missing_docs)
+        logger.info(f"Found {total_embeddings} chunks needing embeddings.")
         
-        for doc in tqdm(missing_docs, desc="Generating Embeddings"):
-            doc_id = doc["_id"]
-            text_to_embed = doc["text"]
-            success = False
-            for attempt in range(3):
-                try:
-                    emb = get_embedding(text_to_embed)
-                    collection.update_one({"_id": doc_id}, {"$set": {"embedding": emb}})
-                    success = True
-                    break
-                except Exception as e:
-                    logger.warning(f"Embedding failed (Attempt {attempt+1}/3) for doc {doc_id}: {e}")
-                    time.sleep(5)
+        # Switch to embedding phase
+        sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress": {"phase": "embedding", "current": 0, "total": total_embeddings}}})
+
+        if total_embeddings == 0:
+             sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.phase": "complete"}})
+        else:
+            for idx, doc in enumerate(tqdm(missing_docs, desc="Generating Embeddings")):
+                # Update current progress
+                sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.current": idx + 1}})
+
+                doc_id = doc["_id"]
+                text_to_embed = doc["text"]
+                success = False
+                for attempt in range(3):
+                    try:
+                        emb = get_embedding(text_to_embed)
+                        vector_col.update_one({"_id": doc_id}, {"$set": {"embedding": emb}})
+                        success = True
+                        break
+                    except Exception as e:
+                        logger.warning(f"Embedding failed (Attempt {attempt+1}/3) for doc {doc_id}: {e}")
+                        time.sleep(2)
+                
+                if not success:
+                    logger.error(f"Failed to generate embedding for doc {doc_id} after 3 attempts.")
+                
+                time.sleep(10) # Reduced for better demo
             
-            if not success:
-                logger.error(f"Failed to generate embedding for doc {doc_id} after 3 attempts.")
-            
-            time.sleep(20)
+            # Finalize progress
+            sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.phase": "complete"}})
+
         logger.info("Ingestion complete.")
     except Exception as e:
         logger.error(f"Ingestion pipeline failed: {e}")
+        sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.phase": "failed", "error": str(e)}})
 
 
 @app.route("/ingest", methods=["POST"])
@@ -231,10 +311,10 @@ def handle_session(session_id):
         # 1. Delete session metadata
         sess_result = sess_col.delete_one({"session_id": session_id})
 
-        # 2. Delete associated document chunks
-        doc_result = doc_col.delete_many({"session_id": session_id})
-
-        logger.info(f"Deleted session {session_id}. Removed {doc_result.deleted_count} document chunks.")
+        # 2. Remove session_id from associated document chunks (don't delete document)
+        doc_result = doc_col.update_many({"session_id": session_id}, {"$pull": {"session_id": session_id}})
+        
+        logger.info(f"Deleted session {session_id}. Dissociated {doc_result.modified_count} document chunks.")
 
         if sess_result.deleted_count == 0:
             return jsonify({"error": "Session not found"}), 404

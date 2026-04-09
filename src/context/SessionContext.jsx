@@ -9,11 +9,12 @@ export function SessionProvider({ children }) {
   const [sessionId, setSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [currentSummaries, setCurrentSummaries] = useState([]);
+  const [ingestionProgress, setIngestionProgress] = useState(null);
   const [sessionsCache, setSessionsCache] = useState({});
 
-  const loadSession = useCallback(async (id) => {
-    // Check cache first
-    if (sessionsCache[id]) {
+  const loadSession = useCallback(async (id, forceRefresh = false) => {
+    // Check cache first unless forced to refresh
+    if (!forceRefresh && sessionsCache[id]) {
       const cached = sessionsCache[id];
       setSessionId(id);
       setMessages(cached.messages || []);
@@ -27,6 +28,7 @@ export function SessionProvider({ children }) {
         const data = await res.json();
         setSessionId(data.session_id);
         setCurrentSummaries(data.metadata || []);
+        setIngestionProgress(data.ingestion_progress || null);
 
         if (data.chat_logs && data.chat_logs.length > 0) {
           const parsedMsgs = [];
@@ -77,6 +79,7 @@ export function SessionProvider({ children }) {
     setSessionId(null);
     setMessages([]);
     setCurrentSummaries([]);
+    setIngestionProgress(null);
   }, []);
 
   // Auto-sync local state to cache whenever it changes for the active session
@@ -101,6 +104,8 @@ export function SessionProvider({ children }) {
         setMessages,
         currentSummaries,
         setCurrentSummaries,
+        ingestionProgress,
+        setIngestionProgress,
         loadSession,
         startNewChat,
       }}

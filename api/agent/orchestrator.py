@@ -21,7 +21,7 @@ You have access to the following tools:
 - vector_search[query]: Semantically searches the text using vector embeddings. Use this for general thematic or meaning-based searches.
 - keyword_search[query]: Searches for exact matches or regex keywords. Use this when looking for specific rare words or exact phrases.
 - character_lookup[name]: Looks up documents mentioning a specific character by name.
-- summary[chapter]: Retrieves the summary of a specific chapter.
+- summary[chapter]: Retrieves the chapter summaries. If chapter is send, returns summary of that specific chapter, otherwise it returns summaries of ALL chapters.
 
 Use the following format strictly:
 
@@ -38,6 +38,17 @@ Rules:
 3. DO NOT output an Observation yourself. Stop generating after the Action. The system will provide the Observation.
 4. When you have enough information, use 'finish[your answer]' to return the answer to the user.
 """
+
+config = types.GenerateContentConfig(
+    temperature=0.1,             # Slightly above 0.0 to allow for path correction
+    top_p=0.95,
+    stop_sequences=["Observation:"],
+    max_output_tokens=4096,
+    thinking_config=types.ThinkingConfig(
+        include_thoughts=True,
+        thinking_level="HIGH"
+    )
+)
 
 def extract_action(text: str):
     """Parses the LLM output to find the Action."""
@@ -57,18 +68,23 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
     client = genai.Client(api_key=api_key)
 
+    SYSTEM_PROMPT_WITH_THINK = f"<|think|>\n{SYSTEM_PROMPT}"
+
     try:
         # Initialize conversation
         history_objs = memory.get_history(session_id)
         if not history_objs:
-            prompt = f"{SYSTEM_PROMPT}\n\nUser Question: {query}\n"
+            prompt = f"{SYSTEM_PROMPT_WITH_THINK}\n\nUser Question: {query}\n"
         else:
             history_str = ""
             for msg in history_objs:
+                # Only include visible messages (User questions and final Agent answers)
+                if msg.get("is_hidden"):
+                    continue
                 role = msg["role"].capitalize()
                 content = msg["content"]
                 history_str += f"{role}: {content}\n"
-            prompt = f"{SYSTEM_PROMPT}\n\n{history_str}User Question: {query}\n"
+            prompt = f"{SYSTEM_PROMPT_WITH_THINK}\n\n{history_str}User Question: {query}\n"
 
         memory.add_message(session_id, "User", query)
         current_prompt = prompt
@@ -78,24 +94,38 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
             try:
                 response = client.models.generate_content(
                     model='gemma-4-31b-it',
-                    contents=current_prompt + "Thought:",
-                    config=types.GenerateContentConfig(
-                        temperature=0.2,
-                        stop_sequences=["Observation:"]
-                    )
+                    contents=current_prompt,
+                    config=config
                 )
-                llm_text = response.text.strip()
-                if not llm_text.startswith("Thought:"):
-                    llm_text = "Thought: " + llm_text
+                # EXTRACT NATIVE THOUGHTS AND ACTION TEXT
+                thought_text = ""
+                response_text = ""
+                
+                for part in response.candidates[0].content.parts:
+                    if part.thought:
+                        thought_text += part.text
+                        if thought_text:
+                            yield json.dumps({
+                                "type": "thought",
+                                "content": thought_text,
+                                "action": None,
+                                "time": datetime.now().isoformat()
+                            })
+                    else:
+                        response_text += part.text
+
+                if not response_text.startswith("Thought:"):
+                    response_text = "Thought: " + response_text
+
+                llm_text = response_text.strip()
+
+                # logger.warn(f"llm_text = {llm_text}")
             except Exception as e:
                 logger.error(f"LLM call failed: {e}")
                 memory.add_message(session_id, "Agent", f"LLM Error: {e}", is_hidden=True)
                 yield json.dumps({"type": "error", "content": f"LLM error: {e}", "time": datetime.now().isoformat()})
                 return
 
-            # Save the message without Action: finish[...] to avoid redundancy in history
-            save_text = re.sub(r"Action:\s*finish\[.*?\]", "", llm_text, flags=re.IGNORECASE | re.DOTALL).strip()
-            memory.add_message(session_id, "Agent", save_text, is_hidden=True)
             current_prompt += llm_text + "\n"
 
             # Parse the thought text
@@ -105,12 +135,21 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
             tool_name, tool_arg = extract_action(llm_text)
 
             # Yield thought event
-            yield json.dumps({
-                "type": "thought",
-                "content": thought_text,
-                "action": f"{tool_name}[{tool_arg}]" if tool_name else None,
-                "time": datetime.now().isoformat()
-            })
+            if thought_text:
+                yield json.dumps({
+                    "type": "thought",
+                    "content": thought_text if thought_text else "Analyzing...",
+                    "action": f"{tool_name}[{tool_arg}]" if tool_name else None,
+                    "time": datetime.now().isoformat()
+                })
+
+            # Save the message without Action: finish[...] to avoid redundancy in history
+            save_text = re.sub(r"Action:\s*finish\[.*?\]", "", llm_text, flags=re.IGNORECASE | re.DOTALL).strip()
+            save_text = re.sub(r"Thought:\s*finish\[.*?\]", "", save_text, flags=re.IGNORECASE | re.DOTALL).strip()
+
+            if tool_name and save_text.strip():
+                # logger.warn(f"save_text = {save_text}")
+                memory.add_message(session_id, "Agent", (save_text if tool_name.lower() != "finish" else save_text.split('.')[0]), is_hidden=True)
 
             if not tool_name:
                 logger.warning("No action found in LLM response.")

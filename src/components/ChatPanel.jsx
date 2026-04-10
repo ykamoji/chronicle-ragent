@@ -16,6 +16,7 @@ export const renderStepAction = (action) => {
     return <div className="step-action">{action}</div>;
   }
 
+  const rawTool = match[1];
   const tool = match[1]
     .replace(/_/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
@@ -25,7 +26,9 @@ export const renderStepAction = (action) => {
   return (
     <div className="step-action">
       <span className="step-tool">{tool}</span>
-      <span className="step-chip">{query}</span>
+      {rawTool !== "finish" && (
+        <span className="step-chip">{query}</span>
+      )}
     </div>
   );
 };
@@ -36,7 +39,7 @@ export default function ChatPanel() {
   const [agentSteps, setAgentSteps] = useState([]);
   const [expandedSteps, setExpandedSteps] = useState({}); // Tracks which message reasoning is expanded
   const chatWindowRef = useRef(null);
-  const { sessionId, setSessionId, messages, setMessages } = useSession();
+  const { sessionId, setSessionId, messages, setMessages, loadSession } = useSession();
 
   // Auto-scroll chat
   useEffect(() => {
@@ -85,6 +88,8 @@ export default function ChatPanel() {
     setMessages((prev) => [...prev, { role: "user", content: userQuery, timestamp: new Date().toISOString() }]);
     setIsLoading(true);
     setAgentSteps([]);
+
+    let currentSessionId = sessionId;
 
     try {
       const payload = { query: userQuery };
@@ -175,8 +180,9 @@ export default function ChatPanel() {
         }
       }
 
-      if (receivedSessionId && !sessionId) {
-        setSessionId(receivedSessionId);
+      if (receivedSessionId) {
+        currentSessionId = receivedSessionId;
+        if (!sessionId) setSessionId(receivedSessionId);
       }
 
       if (finalAnswer) {
@@ -191,6 +197,12 @@ export default function ChatPanel() {
           { role: "agent", content: "The agent could not produce a final answer.", timestamp: new Date().toISOString(), steps: currentSteps },
         ]);
       }
+
+      // Refresh ChatPanel from server to ensure local state matches DB exactly (especially reasoning steps)
+      if (currentSessionId) {
+        await loadSession(currentSessionId, true);
+      }
+
     } catch (err) {
       console.error(err);
       setMessages((prev) => [
@@ -298,8 +310,8 @@ export default function ChatPanel() {
               <div key={i} className={`agent-step ${step.type}`}>
                 {step.type === "thought" && (
                   <div>
-                    <span className="step-text">{step.content}</span>
-                    {renderStepAction(step.action)}
+                    <span className="step-text">{step.content || "Thinking"}</span>
+                    {renderStepAction(step.action) || "Thinking"}
                     <div style={{ opacity: 0.7 }}>{formatTimeWithSeconds(step.time)}</div>
                   </div>
                 )}

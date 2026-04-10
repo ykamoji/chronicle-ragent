@@ -79,8 +79,8 @@ def extract_query_signals(query: str) -> dict:
         raw_text = response.text.strip()
         result = json.loads(raw_text)
         return result
-    except json.JSONDecodeError:
-        logger.warning("Failed to parse query signals JSON")
+    except Exception as e:
+        logger.warning(f"Failed to parse query signals: {e}")
         return {"characters": [], "keywords": [], "chapters":[]}
 
 
@@ -89,11 +89,15 @@ def _apply_filters(docs, characters:List[str] = [], keywords:List[str] = [], cha
     
     filtered = docs
 
+    characters = [c.lower() for c in (characters or [])]
+    keywords = [k.lower() for k in (keywords or [])]
+    chapters = [c.lower() for c in (chapters or [])]
+
     try:
         if characters:
             c_filtered = [
                 d for d in filtered
-                if any(c.lower() in [dc.lower() for dc in d.get("characters", [])] for c in characters)
+                if any(c in [dc.lower() for dc in d.get("characters", [])] for c in characters)
             ]
             if c_filtered:
                 filtered = c_filtered
@@ -101,16 +105,17 @@ def _apply_filters(docs, characters:List[str] = [], keywords:List[str] = [], cha
         if keywords:
             k_filtered = [
                     d for d in filtered
-                    if any(k.lower() in d.get("text", "").lower() for k in keywords)
+                    if any(k in d.get("text", "").lower() for k in keywords)
                 ]
 
-            if k_filtered:
+            # Apply only if not too restrictive
+            if len(k_filtered) >= max(3, int(0.2 * len(filtered))):
                 filtered = k_filtered
         
         if chapters:
             ch_filtered = [
                 d for d in filtered
-                if any(c.lower() in d.get("chapter", "").lower() for c in chapters)
+                if any(c in d.get("chapter", "").lower() for c in chapters)
             ]
 
             if ch_filtered:
@@ -152,7 +157,7 @@ def perform_vector_search(query: str, session_id: str, characters: List[str] = [
     logger.info(f"Using {len(filtered_docs)} filtered documents for vector search in session {session_id}")
 
     # 2. Generate embedding for the query
-    query_embedding = get_embedding(query)
+    query_embedding = get_embedding(query, is_query=True)
 
     # 3. Perform local vector search (NumPy math)
     embeddings = np.array([doc["embedding"] for doc in filtered_docs], dtype="float32")

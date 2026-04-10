@@ -8,6 +8,31 @@ from api.ingestion.embedder import get_embedding
 
 logger = logging.getLogger(__name__)
 
+def _apply_filters(docs, character:str = "", chapter:str = "", keywords:str = ""):
+    """Filter documents in-memory"""
+    
+    filtered = docs
+
+    if character:
+        filtered = [
+            d for d in filtered
+            if "characters" in d and character.lower() in [c.lower() for c in d.get("characters", [])]
+        ]
+
+    if chapter:
+        filtered = [d for d in filtered if chapter in d.get("chapter")]
+
+    if keywords:
+        keyword_list = [k.strip().lower() for k in keywords.split(",") if k.strip()]
+        if keyword_list:
+            filtered = [
+                d for d in filtered
+                if any(k in d.get("text", "").lower() for k in keyword_list)
+            ]
+
+    return filtered
+
+
 def perform_vector_search(query: str, session_id: str, limit: int = 10) -> List[Dict[str, Any]]:
     """Performs a vector search against MongoDB Atlas using cosine similarity."""
     vector_collection = mongo.get_vector_collection()
@@ -28,23 +53,29 @@ def perform_vector_search(query: str, session_id: str, limit: int = 10) -> List[
         if docs:
             session_cache.set_vector_docs(session_id, docs)
 
-    logger.info(f"Using {len(docs)} documents for vector search in session {session_id}")
-
     if not docs:
         return []
+
+    logger.info(f"Using {len(docs)} documents for vector search in session {session_id}")
+
+    filtered_docs = _apply_filters(docs)
+
+    logger.info(f"Using {len(filtered_docs)} filtered documents for vector search in session {session_id}")
 
     # 2. Generate embedding for the query
     query_embedding = get_embedding(query)
 
     # 3. Perform local vector search (NumPy math)
-    embeddings = np.array([doc["embedding"] for doc in docs], dtype="float32")
+    embeddings = np.array([doc["embedding"] for doc in filtered_docs], dtype="float32")
     query_vec = np.array(query_embedding, dtype="float32")
 
     scores = embeddings @ query_vec
 
-    for doc, score in zip(docs, scores):
+    for doc, score in zip(filtered_docs, scores):
         doc["score"] = float(score)
 
-    results = nlargest(limit, docs, key=lambda x: x["score"])
+    results = nlargest(limit, filtered_docs, key=lambda x: x["score"])
+
+    logger.info(f"results = {results}")
 
     return results

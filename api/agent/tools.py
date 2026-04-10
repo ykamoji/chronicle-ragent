@@ -1,5 +1,6 @@
 from api.retrieval.vector_search import perform_vector_search
 from api.retrieval.keyword_search import perform_keyword_search
+from api.retrieval.character_search import perform_character_search
 from api.db.mongo import mongo
 from api.db.cache import session_cache
 import logging
@@ -44,21 +45,9 @@ def tool_character_lookup(name: str, session_id: str) -> str:
     """Looks up documents mentioning a specific character by name."""
     logger.info(f"Running character lookup for: {name} (Session: {session_id})")
     try:
-        collection = mongo.get_vector_collection()
-        if collection is None:
-            return "MongoDB is not connected."
-            
-        results = list(collection.find(
-            {
-                "session_id": session_id,
-                "characters": {"$regex": name, "$options": "i"}
-            },
-            {"text": 1, "chapter": 1, "_id": 0}
-        ))
-        
+        results = perform_character_search(name, session_id, limit=3)
         if not results:
             return f"No mentions found for character: {name}"
-            
         rendered = []
         for r in results:
             text = r.get('text', 'No text')

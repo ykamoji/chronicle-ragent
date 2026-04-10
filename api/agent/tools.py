@@ -63,6 +63,10 @@ def tool_character_lookup(name: str, session_id: str) -> str:
 
 def tool_summary(chapter: str, session_id: str) -> str:
     """Retrieves the summary of a specific chapter from session metadata."""
+    
+    if chapter == "":
+        chapter = "all"
+
     logger.info(f"Running summary lookup for chapter: {chapter} (Session: {session_id})")
     try:
         # 1. Check Cache first
@@ -80,13 +84,16 @@ def tool_summary(chapter: str, session_id: str) -> str:
                 
             metadata = doc.get("metadata", [])
             session_cache.set_metadata(session_id, metadata)
-            
-        import re
-        # Filter metadata for matching chapter name (case-insensitive)
-        matches = [
-            m for m in metadata 
-            if re.search(re.escape(chapter), m.get("chapter", ""), re.IGNORECASE)
-        ]
+        
+        if chapter == "all":
+            matches = metadata
+        else:
+            import re
+            # Filter metadata for matching chapter name (case-insensitive)
+            matches = [
+                m for m in metadata 
+                if re.search(re.escape(chapter), m.get("chapter", ""), re.IGNORECASE)
+            ]
         
         if not matches:
             return f"No summaries found matching chapter: {chapter}"

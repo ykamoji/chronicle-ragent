@@ -21,7 +21,7 @@ You have access to the following tools:
 - vector_search[query]: Semantically searches the text using vector embeddings. Use this for general thematic or meaning-based searches.
 - keyword_search[query]: Searches for exact matches or regex keywords. Use this when looking for specific rare words or exact phrases.
 - character_lookup[name]: Looks up documents mentioning a specific character by name.
-- summary[chapter]: Retrieves the summary of a specific chapter.
+- summary[chapter]: Retrieves the chapter summaries. If chapter is send, returns summary of that specific chapter, otherwise it returns summaries of ALL chapters.
 
 Use the following format strictly:
 

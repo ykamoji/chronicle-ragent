@@ -48,7 +48,7 @@ def tool_character_lookup(name: str, session_id: str) -> str:
     """Looks up documents mentioning a specific character by name."""
     logger.info(f"Running character lookup for: {name} (Session: {session_id})")
     try:
-        results = perform_character_search(name, session_id, limit=3)
+        results = perform_character_search(name, session_id)
         if not results:
             return f"No mentions found for character: {name}"
         rendered = []

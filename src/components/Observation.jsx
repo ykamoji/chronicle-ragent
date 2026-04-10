@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import "./Observation.css";
 
 export const CollapsibleObservation = ({ content }) => {
@@ -16,10 +16,15 @@ export const CollapsibleObservation = ({ content }) => {
             const rawText = (parts[i + 1] || "").trim();
             blocks.push({ source, text: rawText });
         }
+
         return blocks;
     };
 
     const blocks = processContent(content);
+
+    console.log(content)
+    console.log(blocks)
+
     const sources = [...new Set(blocks.map(b => b.source))];
     const showToggle = blocks.length > 0;
 
@@ -40,14 +45,14 @@ export const CollapsibleObservation = ({ content }) => {
                 </div>
             )}
 
-            {isExpanded && blocks.length > 0 && (
+            {(isExpanded || !showToggle) && (
                 <div className="observation-text-wrapper">
-                    {blocks.map((block, idx) => (
+                    {blocks.length > 0 ? blocks.map((block, idx) => (
                         <div key={idx} className="observation-paragraph">
-                            <span className="source-header">[Source: {block.source}]</span>
+                            {block.source.length > 0 && <span className="source-header">[Source: {block.source}]</span>}
                             <p className="paragraph-text">{block.text}</p>
                         </div>
-                    ))}
+                    )) : <p className="paragraph-text">{content}</p>}
                 </div>
             )}
 

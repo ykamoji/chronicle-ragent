@@ -8,7 +8,7 @@ from api.ingestion.embedder import get_embedding
 
 logger = logging.getLogger(__name__)
 
-def perform_vector_search(query: str, session_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+def perform_vector_search(query: str, session_id: str, limit: int = 10) -> List[Dict[str, Any]]:
     """Performs a vector search against MongoDB Atlas using cosine similarity."""
     vector_collection = mongo.get_vector_collection()
     if vector_collection is None:

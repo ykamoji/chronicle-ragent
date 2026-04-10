@@ -10,7 +10,7 @@ def tool_vector_search(query: str, session_id: str) -> str:
     """Semantically searches the document text based on meaning."""
     logger.info(f"Running vector search for: {query} (Session: {session_id})")
     try:
-        results = perform_vector_search(query, session_id, limit=3)
+        results = perform_vector_search(query, session_id, limit=10)
         if not results:
             return "No matching documents found in vector search."
         rendered = []

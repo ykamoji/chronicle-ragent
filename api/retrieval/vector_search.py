@@ -1,4 +1,5 @@
 import numpy as np
+import re
 import logging
 import os
 import json
@@ -9,6 +10,7 @@ from typing import List, Dict, Any
 from api.db.mongo import mongo
 from api.db.cache import session_cache
 from api.ingestion.embedder import get_embedding
+from api.config.settings import app_settings
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +50,7 @@ def extract_query_signals(query: str) -> dict:
     client = genai.Client(api_key=api_key)
 
     response = client.models.generate_content(
-        model='gemma-4-31b-it',
+        model=app_settings.get_model(),
         contents=f"{EXTRACTION_PROMPT}{query}",
         config=types.GenerateContentConfig(
             temperature=0.0,
@@ -76,13 +78,25 @@ def extract_query_signals(query: str) -> dict:
     )
 
     try:
-        raw_text = response.text.strip()
-        result = json.loads(raw_text)
+        result = safe_json_extract(response.text.strip())
         return result
     except Exception as e:
         logger.warning(f"Failed to parse query signals: {e}")
         return {"characters": [], "keywords": [], "chapters":[]}
 
+def safe_json_extract(text: str) -> dict:
+    try:
+        # Extract first JSON object using regex
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if not match:
+            raise ValueError("No JSON object found")
+
+        json_str = match.group(0)
+        return json.loads(json_str)
+
+    except Exception as e:
+        logger.warning(f"JSON extraction failed: {e}")
+        return {"characters": [], "keywords": [], "chapters": []}
 
 def _apply_filters(docs, characters:List[str] = [], keywords:List[str] = [], chapters:List[str] = []):
     """Filter documents in-memory"""

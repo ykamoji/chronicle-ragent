@@ -223,3 +223,42 @@
     transform: translateY(0);
   }
 }
+
+/* Retry row rendered below a failed bubble */
+.retry-row {
+  align-self: flex-end;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: -15px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.retry-label {
+  font-size: 0.72rem;
+  color: #f59e0b;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.retry-btn {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #f59e0b;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.retry-btn:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.22);
+  transform: scale(1.04);
+}
+
+.retry-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

@@ -1,0 +1,329 @@
+/* ── Settings footer pinned to sidebar bottom ── */
+.settings-footer {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--panel-glass-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Current model chip row */
+.settings-model-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.03);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.3;
+  min-width: 0;
+}
+
+.settings-model-chip .model-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+}
+
+.settings-model-chip .model-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* Settings trigger button */
+.settings-trigger-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid var(--panel-glass-border);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: background 0.15s ease;
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.settings-trigger-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  transform: none;
+  box-shadow: none;
+}
+
+/* Collapsed state: icon only */
+.settings-footer.collapsed .settings-model-chip {
+  justify-content: center;
+  padding: 8px;
+}
+
+.settings-footer.collapsed .model-name,
+.settings-footer.collapsed .settings-label-text {
+  display: none;
+}
+
+.settings-footer.collapsed .settings-trigger-btn {
+  justify-content: center;
+  padding: 10px;
+}
+
+/* ── Slide-up overlay panel ── */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+}
+
+.settings-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(2px);
+}
+
+.settings-panel {
+  position: relative;
+  z-index: 1;
+  width: 320px;
+  max-height: 90vh;
+  overflow-y: auto;
+  margin-left: 20px;
+  margin-bottom: 20px;
+  background: var(--panel-glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--panel-glass-border);
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+  padding: 20px;
+  animation: settingsSlideUp 0.25s ease-out;
+  scrollbar-width: thin;
+}
+
+@keyframes settingsSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.settings-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.settings-panel-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.settings-close-btn {
+  background: transparent;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.settings-close-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-primary);
+  transform: none;
+  box-shadow: none;
+}
+
+/* ── Section labels ── */
+.settings-section-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  margin-top: 12px;
+}
+
+/* ── Model list ── */
+.model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.model-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+
+.model-option:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.model-option.active {
+  background: rgba(0, 0, 0, 0.06);
+  font-weight: 600;
+}
+
+/* Radio circle */
+.model-radio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--panel-glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.15s ease;
+}
+
+.model-option.active .model-radio {
+  border-color: var(--accent-cyan);
+}
+
+.model-radio-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+.model-option.active .model-radio-dot {
+  background: var(--accent-cyan);
+}
+
+.model-option-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.model-option-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-option-id {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Delay input ── */
+.delay-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.delay-input-row label {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.delay-input {
+  width: 70px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--panel-glass-border);
+  background: rgba(0, 0, 0, 0.02);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  text-align: center;
+  transition: border-color 0.15s ease;
+}
+
+.delay-input:focus {
+  border-color: var(--accent-cyan);
+}
+
+.delay-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.delay-hint {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* ── Divider ── */
+.settings-divider {
+  height: 1px;
+  background: var(--panel-glass-border);
+  margin: 10px 0;
+}
+
+/* ── Action links (Help, Feedback, Theme) ── */
+.settings-action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-action-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.settings-action-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+  transform: none;
+  box-shadow: none;
+}
+
+.settings-action-icon {
+  font-size: 1rem;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}

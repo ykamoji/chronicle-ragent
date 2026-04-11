@@ -2,9 +2,10 @@ import os
 import json
 from google import genai
 from google.genai import types
+from api.config.settings import app_settings
 
 def extract_metadata(chunk_text: str) -> dict:
-    """Uses Google Gemini to extract a summary, chapter title, and character list from text."""
+    """Extract a summary, chapter title, and character list from text."""
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY is not set.")
@@ -25,7 +26,7 @@ def extract_metadata(chunk_text: str) -> dict:
     client = genai.Client(api_key=api_key)
     
     response = client.models.generate_content(
-        model='gemma-4-31b-it',
+        model=app_settings.get_model(),
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.1,

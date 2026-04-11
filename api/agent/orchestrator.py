@@ -7,6 +7,7 @@ from google import genai
 from google.genai import types
 from api.agent.tools import TOOLS
 from api.agent.memory import memory
+from api.config.settings import app_settings
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,23 @@ def extract_action(text: str):
         return match.group(1), match.group(2)
     return None, None
 
+def trim_observation_block(observation, limit=400):
+
+    if "[Source:" not in observation:
+        return observation
+
+    pattern = r'(\[Source: Chapter \d+\])(.*?)(?=\n\[Source: Chapter \d+\]|$)'
+
+    matches = re.findall(pattern, observation, re.DOTALL)
+
+    result = []
+    for source, content in matches:
+        cleaned = content.strip()[:limit] + '...'
+        formatted = f"{source}\n{cleaned}"
+        result.append(formatted)
+
+    return "Observation: " + "\n\n".join(result)
+
 def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
     """Generator version of run_agent that yields SSE events at each step."""
     import json
@@ -93,7 +111,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
             # Call LLM
             try:
                 response = client.models.generate_content(
-                    model='gemma-4-31b-it',
+                    model=app_settings.get_model(),
                     contents=current_prompt,
                     config=config
                 )
@@ -180,13 +198,13 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
             obs_text = f"Observation: {observation}\n"
             current_prompt += obs_text
-            memory.add_message(session_id, "System", obs_text.strip(), is_hidden=True)
+            memory.add_message(session_id, "System", trim_observation_block(obs_text.strip()), is_hidden=True)
 
             # Yield observation summary (truncated for display)
             obs_display = str(observation)[:200] + ("..." if len(str(observation)) > 200 else "")
             yield json.dumps({"type": "observation", "content": obs_display, "time": datetime.now().isoformat()})
 
-            time.sleep(10)
+            time.sleep(app_settings.get_delay())
 
         final_msg = "Agent reached maximum steps without finding a final answer."
         logger.warning(final_msg)

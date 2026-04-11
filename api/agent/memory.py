@@ -53,9 +53,54 @@ class AgentMemory:
             "session_id": session_id,
             "upload_time": datetime.now().isoformat(),
             "messages": [],
-            "summary": []
         }
         col.insert_one(doc)
+
+    def delete_last_query_internals(self, session_id: str) -> int:
+        """Removes the last incomplete query round from MongoDB."""
+        col = mongo.get_sessions_collection()
+        if col is None:
+            return 0
+
+        doc = col.find_one({"session_id": session_id})
+        if not doc:
+            return 0
+
+        messages = doc.get("messages", [])
+        if not messages:
+            return 0
+
+        total_input = len(messages)
+        # Walk backwards to find where the last visible agent answer ends.
+        cut_index = total_input  # default: remove nothing
+        for i in range(total_input - 1, -1, -1):
+            msg = messages[i]
+            # Stop as soon as we hit a visible agent reply
+            if not msg.get("is_hidden") and msg.get("role") == "agent":
+                cut_index = i + 1
+                import logging
+                logging.getLogger(__name__).info(f"Cleanup: Found last visible agent reply at index {i}. Truncating after it.")
+                break
+            if i == 0:
+                cut_index = 0
+                import logging
+                logging.getLogger(__name__).info("Cleanup: No visible agent reply found. Truncating from the beginning.")
+
+        removed_count = total_input - cut_index
+        if removed_count == 0:
+            import logging
+            logging.getLogger(__name__).info(f"Cleanup: session {session_id} is already clean (total={total_input}).")
+            return 0
+
+        # Slice the list and persist
+        trimmed = messages[:cut_index]
+        col.update_one(
+            {"session_id": session_id},
+            {"$set": {"messages": trimmed}}
+        )
+        import logging
+        logging.getLogger(__name__).info(f"Cleanup: session {session_id} - removed {removed_count} messages. New total: {cut_index}.")
+        return removed_count        
 
 # Global memory instance
 memory = AgentMemory()

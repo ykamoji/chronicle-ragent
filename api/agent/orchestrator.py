@@ -7,6 +7,7 @@ from google import genai
 from google.genai import types
 from api.agent.tools import TOOLS
 from api.agent.memory import memory
+from api.config.settings import app_settings
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +111,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
             # Call LLM
             try:
                 response = client.models.generate_content(
-                    model='gemma-4-31b-it',
+                    model=app_settings.get_model(),
                     contents=current_prompt,
                     config=config
                 )
@@ -203,7 +204,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
             obs_display = str(observation)[:200] + ("..." if len(str(observation)) > 200 else "")
             yield json.dumps({"type": "observation", "content": obs_display, "time": datetime.now().isoformat()})
 
-            time.sleep(10)
+            time.sleep(app_settings.get_delay())
 
         final_msg = "Agent reached maximum steps without finding a final answer."
         logger.warning(final_msg)

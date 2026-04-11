@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv()
 import time
+import json
 import hashlib
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
@@ -11,6 +12,7 @@ from api.ingestion.extractor import extract_metadata
 from api.ingestion.embedder import get_embedding
 from api.db.mongo import mongo
 from api.db.cache import session_cache
+from api.config.settings import app_settings
 import logging
 import os
 import threading
@@ -34,6 +36,29 @@ def health_check():
     return jsonify({"status": "healthy", "mongo_connected": mongo.client is not None})
 
 
+@app.route("/settings", methods=["GET", "PUT"])
+def handle_settings():
+    """GET returns current settings; PUT updates active model / delay override."""
+    if request.method == "GET":
+        return jsonify(app_settings.to_dict())
+
+    # PUT
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Missing JSON body"}), 400
+
+    if "model" in data:
+        ok = app_settings.set_model(data["model"])
+        if not ok:
+            return jsonify({"error": f"Unknown model: {data['model']}"}), 400
+
+    if "delayOverride" in data:
+        val = data["delayOverride"]
+        app_settings.set_delay_override(val if val is not None and val != "" else None)
+
+    return jsonify(app_settings.to_dict())
+
+
 @app.route("/query", methods=["POST"])
 def query_agent():
     """Hits the main ReAct agent with a user query, streaming steps via SSE."""
@@ -55,6 +80,16 @@ def query_agent():
     def generate():
         for event_json in run_agent_stream(session_id, user_query):
             yield f"data: {event_json}\n\n"
+            
+            # Check for error type for automatic cleanup
+            try:
+                event = json.loads(event_json)
+                if event.get("type") == "error":
+                    logger.warning(f"Error detected in stream for session {session_id}. Running cleanup.")
+                    memory.delete_last_query_internals(session_id)
+                    return
+            except Exception as e:
+                logger.debug(f"Event not checkable for cleanup: {e}")
 
     return Response(generate(), content_type='text/event-stream', headers={
         'Cache-Control': 'no-cache',
@@ -102,7 +137,6 @@ def ingest_progress(session_id):
             
             # Only send if progress changed
             if progress != last_progress:
-                import json
                 yield f"data: {json.dumps(progress)}\n\n"
                 last_progress = progress
             

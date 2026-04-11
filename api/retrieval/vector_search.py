@@ -10,6 +10,7 @@ from typing import List, Dict, Any
 from api.db.mongo import mongo
 from api.db.cache import session_cache
 from api.ingestion.embedder import get_embedding
+from api.config.settings import app_settings
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,7 @@ def extract_query_signals(query: str) -> dict:
     client = genai.Client(api_key=api_key)
 
     response = client.models.generate_content(
-        model='gemma-4-31b-it',
+        model=app_settings.get_model(),
         contents=f"{EXTRACTION_PROMPT}{query}",
         config=types.GenerateContentConfig(
             temperature=0.0,

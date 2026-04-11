@@ -1,0 +1,44 @@
+{
+    "modelList": [
+        {
+            "name": "Gemini 3.1 Flash Lite",
+            "model": "gemini-3.1-flash-lite-preview",
+            "delay": 10
+        },
+        {
+            "name": "Gemini 3.1 Pro Preview",
+            "model": "gemini-3.1-pro-preview",
+            "delay": 20
+        },
+        {
+            "name": "Gemini 3.1 Pro Preview CustomTools",
+            "model": "gemini-3.1-pro-preview-customtools",
+            "delay": 20
+        },
+        {
+            "name": "Gemini 3.1 Flash Preview",
+            "model": "gemini-3-flash-preview",
+            "delay": 30
+        },
+        {
+            "name": "Gemini 2.5 Flash",
+            "model": "gemini-2.5-flash",
+            "delay": 30
+        },
+        {
+            "name": "Gemini 2.5 Flash Lite",
+            "model": "gemini-2.5-flash-lite",
+            "delay": 20
+        },
+        {
+            "name": "Gemma 4 31B",
+            "model": "gemma-4-31b-it",
+            "delay": 10
+        },
+        {
+            "name": "Gemma 4 26B",
+            "model": "gemma-4-26b-a4b-it",
+            "delay": 10
+        }
+    ]
+}

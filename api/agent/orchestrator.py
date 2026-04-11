@@ -177,6 +177,12 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
             if tool_name.lower() == "finish":
                 memory.add_message(session_id, "Agent", tool_arg, is_hidden=False)
+
+                # Generate a chat name from the first user query (non-blocking)
+                import threading
+                t = threading.Thread(target=memory.set_chat_name, args=(session_id, tool_arg), daemon=True)
+                t.start()
+
                 yield json.dumps({
                     "type": "answer",
                     "content": tool_arg,

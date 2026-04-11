@@ -19,7 +19,7 @@ class AppSettings:
     # ── Bootstrap ──────────────────────────────────────────────────────
 
     def _load(self):
-        """Load modelList from disk and default active model to gemma-4-31b-it."""
+        """Load modelList from disk and default active model to gemini-3.1-flash-lite-preview."""
         try:
             with open(_SETTINGS_PATH, "r") as f:
                 data = json.load(f)
@@ -28,9 +28,9 @@ class AppSettings:
             logger.error(f"Failed to load settings.json: {e}")
             self._model_list = []
 
-        # Default to gemma-4-31b-it (the model the codebase was using)
+        # Default to gemini-3.1-flash-lite-preview
         default = next(
-            (m for m in self._model_list if m["model"] == "gemma-4-31b-it"),
+            (m for m in self._model_list if m["model"] == "gemini-3.1-flash-lite-preview"),
             self._model_list[0] if self._model_list else None,
         )
         self._active_model = default
@@ -41,7 +41,7 @@ class AppSettings:
         """Returns the model id string for API calls."""
         if self._active_model:
             return self._active_model["model"]
-        return "gemma-4-31b-it"
+        return "gemini-3.1-flash-lite-preview"
 
     def get_model_info(self) -> dict:
         """Returns the full active model dict (name, model, delay)."""

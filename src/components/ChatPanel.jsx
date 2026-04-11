@@ -34,12 +34,58 @@ export const renderStepAction = (action) => {
   );
 };
 
+const formatTime = (isoString) => {
+  if (!isoString) return "";
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "short",   // Apr, May, etc.
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,    // no AM/PM
+    });
+  } catch (e) {
+    return "";
+  }
+};
+
+const formatTimeWithSeconds = (isoString) => {
+  if (!isoString) return "";
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+  } catch (e) {
+    return "";
+  }
+};
+
+/** Calls /query/cleanup to purge the failed round from MongoDB. */
+const callCleanup = async (sid) => {
+  if (!sid) return;
+  try {
+    await fetch(`${STREAM_URL}/query/cleanup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sid }),
+    });
+  } catch (e) {
+    console.warn("Cleanup call failed:", e);
+  }
+};
+
 export default function ChatPanel() {
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [agentSteps, setAgentSteps] = useState([]);
   const [expandedSteps, setExpandedSteps] = useState({}); // Tracks which message reasoning is expanded
   const chatWindowRef = useRef(null);
+  const liveThoughtsRef = useRef(null);
   const { sessionId, setSessionId, messages, setMessages, isSessionLoading, loadSession } = useSession();
 
   // Auto-scroll chat
@@ -49,51 +95,6 @@ export default function ChatPanel() {
     }
   }, [messages, isLoading, agentSteps]);
 
-  const formatTime = (isoString) => {
-    if (!isoString) return "";
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleString("en-GB", {
-        day: "2-digit",
-        month: "short",   // Apr, May, etc.
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,    // no AM/PM
-      });
-    } catch (e) {
-      return "";
-    }
-  };
-
-  const formatTimeWithSeconds = (isoString) => {
-    if (!isoString) return "";
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false, // ✅ removes AM/PM
-      });
-    } catch (e) {
-      return "";
-    }
-  };
-
-  /** Calls /query/cleanup to purge the failed round from MongoDB. */
-  const callCleanup = async (sid) => {
-    if (!sid) return;
-    try {
-      await fetch(`${STREAM_URL}/query/cleanup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: sid }),
-      });
-    } catch (e) {
-      console.warn("Cleanup call failed:", e);
-    }
-  };
-
   /** Re-submits the last query. */
   const handleRetry = async () => {
     if (messages.length === 0) return;
@@ -102,14 +103,14 @@ export default function ChatPanel() {
 
     const retryQuery = lastMsg.content;
 
-    // 1. Clean up the failed attempt from the backend first
+    // 1. Remove the last user message from local state
+    setMessages((prev) => prev.slice(0, -1));
+    setQuery(retryQuery);
+
+    // 2. Clean up the failed attempt from the backend first
     if (sessionId) {
       await callCleanup(sessionId);
     }
-
-    // 2. Remove the last user message from local state
-    setMessages((prev) => prev.slice(0, -1));
-    setQuery(retryQuery);
 
     // 3. Submit immediately
     handleSend(null, retryQuery);
@@ -145,6 +146,8 @@ export default function ChatPanel() {
       let buffer = "";
       let finalAnswer = null;
       let receivedSessionId = null;
+      let responseModel = null;
+      let responseTime = null;
       let currentSteps = [];
 
       while (true) {
@@ -199,6 +202,8 @@ export default function ChatPanel() {
               case "answer":
                 finalAnswer = event.content;
                 receivedSessionId = event.session_id;
+                responseModel = event.model_name;
+                responseTime = event.total_time;
                 break;
 
               case "error":
@@ -233,7 +238,7 @@ export default function ChatPanel() {
       if (finalAnswer) {
         setMessages((prev) => [
           ...prev,
-          { role: "agent", content: finalAnswer, timestamp: new Date().toISOString(), steps: currentSteps },
+          { role: "agent", content: finalAnswer, timestamp: new Date().toISOString(), steps: currentSteps, model_name: responseModel, total_time: responseTime },
         ]);
         if (currentSessionId) {
           await loadSession(currentSessionId, true);
@@ -252,6 +257,16 @@ export default function ChatPanel() {
       // until the NEXT query is sent.
     }
   };
+
+  // const scrollToBottom = () => {
+  //   if (liveThoughtsRef.current) {
+  //     liveThoughtsRef.current.scrollIntoView({ behavior: "smooth" });
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   scrollToBottom();
+  // }, [agentSteps]);
 
   return (
     <main className="chat-container glass-panel">
@@ -313,27 +328,35 @@ export default function ChatPanel() {
 
             {/* Collapsible Reasoning Block */}
             {msg.role === "agent" && msg.steps && msg.steps.length > 0 && expandedSteps[index] && (
-              <div className="agent-steps-container historical">
-                {msg.steps.filter(step => step.type !== "tool").map((step, si) => (
-                  <div key={si} className={`agent-step ${step.type}`}>
-                    {step.type === "thought" && (
-                      <div>
-                        <span className="step-text">{<ReactMarkdown>{step.content}</ReactMarkdown> || "Thinking"}</span>
-                        {renderStepAction(step.action)}
-                      </div>
-                    )}
-                    {step.type === "observation" && (
-                      <CollapsibleObservation content={step.content} />
-                    )}
-                    {step.type === "error" && (
-                      <div>
-                        <span className="step-text error-text">{step.content}</span>
-                      </div>
-                    )}
-                    <div className="step-time">{formatTimeWithSeconds(step.time)}</div>
+              <>
+                {(msg.model_name || msg.total_time) && (
+                  <div className="agent-meta-info">
+                    <span>{msg.model_name && `${msg.model_name}`}</span>
+                    <span>{msg.total_time && `${msg.total_time}s`}</span>
                   </div>
-                ))}
-              </div>
+                )}
+                <div className="agent-steps-container historical">
+                  {msg.steps.filter(step => step.type !== "tool").map((step, si) => (
+                    <div key={si} className={`agent-step ${step.type}`}>
+                      {step.type === "thought" && (
+                        <div>
+                          <span className="step-text">{<ReactMarkdown>{step.content}</ReactMarkdown> || "Thinking"}</span>
+                          {renderStepAction(step.action)}
+                        </div>
+                      )}
+                      {step.type === "observation" && (
+                        <CollapsibleObservation content={step.content} />
+                      )}
+                      {step.type === "error" && (
+                        <div>
+                          <span className="step-text error-text">{step.content}</span>
+                        </div>
+                      )}
+                      <div className="step-time">{formatTimeWithSeconds(step.time)}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         ))}
@@ -373,6 +396,7 @@ export default function ChatPanel() {
                 <span className="step-text">Thinking...</span>
               </div>
             )}
+            <div ref={liveThoughtsRef} />
           </div>
         )}
 
@@ -387,7 +411,7 @@ export default function ChatPanel() {
         {/* Global Retry Option: If last message is User and we are not loading, the agent failed to respond. */}
         {!isLoading && messages.length > 0 && messages[messages.length - 1].role === "user" && (
           <div className="retry-row">
-            <span className="retry-label">Agent didn't respond</span>
+            <span className="retry-label">Error</span>
             <button
               className="retry-btn"
               onClick={handleRetry}
@@ -399,7 +423,7 @@ export default function ChatPanel() {
       </div>
 
       {/* Session loading: bouncing typing dots at the bottom of the chat area */}
-      {isSessionLoading && (
+      {isSessionLoading && messages.length == 0 && (
         <div className="session-loading-row">
           <div className="typing-dots">
             <span></span>
@@ -418,7 +442,7 @@ export default function ChatPanel() {
           onChange={(e) => setQuery(e.target.value)}
           disabled={isLoading || isSessionLoading}
         />
-        <button type="submit" disabled={isLoading || isSessionLoading || !query.trim()}>
+        <button type="submit" disabled={isLoading || isSessionLoading || !query.trim()} style={{ background: isLoading ? 'gray' : '#000' }}>
           Ask
         </button>
       </form>

@@ -5,7 +5,6 @@ import os
 import json
 from google import genai
 from google.genai import types
-from heapq import nlargest
 from typing import List, Dict, Any
 from api.db.mongo import mongo
 from api.db.cache import session_cache
@@ -174,14 +173,18 @@ def perform_vector_search(query: str, session_id: str, characters: List[str] = [
     query_embedding = get_embedding(query, is_query=True)
 
     # 3. Perform local vector search (NumPy math)
-    embeddings = np.array([doc["embedding"] for doc in filtered_docs], dtype="float32")
-    query_vec = np.array(query_embedding, dtype="float32")
+    embeddings = np.ascontiguousarray([doc["embedding"] for doc in filtered_docs], dtype=np.float32)
+    
+    query_vec = np.asarray(query_embedding, dtype=np.float32)
 
     scores = embeddings @ query_vec
+    
+    top_k_idx = np.argpartition(scores, -limit)[-limit:]
+    top_k_idx = top_k_idx[np.argsort(scores[top_k_idx])[::-1]]
 
-    for doc, score in zip(filtered_docs, scores):
-        doc["score"] = float(score)
-
-    results = nlargest(limit, filtered_docs, key=lambda x: x["score"])
+    results = [
+        {**filtered_docs[i], "score": float(scores[i])}
+        for i in top_k_idx
+    ]
 
     return results

@@ -23,7 +23,19 @@ export function SessionProvider({ children }) {
       return;
     }
 
-    setIsSessionLoading(true);
+    // When force-refreshing the *current* session (e.g. after a query
+    // completes), skip clearing messages and the loading spinner so the
+    // UI doesn't briefly flash the "Loading conversation…" animation.
+    // We'll update state atomically once the fetch resolves.
+    const isSilentRefresh = forceRefresh && id === sessionId;
+
+    if (!isSilentRefresh) {
+      setSessionId(id);
+      setMessages([]);
+      setCurrentSummaries([]);
+      setIngestionProgress(null);
+      setIsSessionLoading(true);
+    }
 
     try {
       const [sessRes, msgRes] = await Promise.all([

@@ -53,7 +53,7 @@ config = types.GenerateContentConfig(
 
 def extract_action(text: str):
     """Parses the LLM output to find the Action."""
-    match = re.search(r"Action:\s*(\w+)\[(.*?)\]", text, re.IGNORECASE | re.DOTALL)
+    match = re.search(r"Action:\s*(\w+)\[(.*)\]", text, re.IGNORECASE | re.DOTALL)
     if match:
         return match.group(1), match.group(2)
     return None, None
@@ -87,6 +87,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
     client = genai.Client(api_key=api_key)
 
     SYSTEM_PROMPT_WITH_THINK = f"<|think|>\n{SYSTEM_PROMPT}"
+    start_time = time.time()
 
     try:
         # Initialize conversation
@@ -137,7 +138,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
                 llm_text = response_text.strip()
 
-                # logger.warn(f"llm_text = {llm_text}")
+                # logger.info(f"llm_text = {llm_text}")
             except Exception as e:
                 logger.error(f"LLM call failed: {e}")
                 memory.add_message(session_id, "Agent", f"LLM Error: {e}", is_hidden=True)
@@ -176,7 +177,10 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                 continue
 
             if tool_name.lower() == "finish":
-                memory.add_message(session_id, "Agent", tool_arg, is_hidden=False)
+                total_time = time.time() - start_time
+                model_name = app_settings.get_model_info().get("name", "Unknown Model")
+
+                memory.add_message(session_id, "Agent", tool_arg, is_hidden=False, model_name=model_name, total_time=total_time)
 
                 # Generate a chat name from the first user query (non-blocking)
                 import threading
@@ -187,6 +191,8 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                     "type": "answer",
                     "content": tool_arg,
                     "session_id": session_id,
+                    "model_name": model_name,
+                    "total_time": round(total_time, 2),
                     "time": datetime.now().isoformat()
                 })
                 return
@@ -204,11 +210,10 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
             obs_text = f"Observation: {observation}\n"
             current_prompt += obs_text
-            memory.add_message(session_id, "System", trim_observation_block(obs_text.strip()), is_hidden=True)
+            trimmed_observations = trim_observation_block(obs_text.strip())
+            memory.add_message(session_id, "System", trimmed_observations, is_hidden=True)
 
-            # Yield observation summary (truncated for display)
-            obs_display = str(observation)[:200] + ("..." if len(str(observation)) > 200 else "")
-            yield json.dumps({"type": "observation", "content": obs_display, "time": datetime.now().isoformat()})
+            yield json.dumps({"type": "observation", "content": trimmed_observations, "time": datetime.now().isoformat()})
 
             time.sleep(app_settings.get_delay())
 

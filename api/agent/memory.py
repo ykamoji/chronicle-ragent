@@ -19,7 +19,7 @@ class AgentMemory:
         cursor = col.find({"session_id": session_id}, {"_id": 0}).sort("timestamp", 1)
         return list(cursor)
 
-    def add_message(self, session_id: str, role: str, content: str, is_hidden: bool = False):
+    def add_message(self, session_id: str, role: str, content: str, is_hidden: bool = False, model_name: str = None, total_time: float = None):
         col = mongo.get_messages_collection()
         if col is None: return
         
@@ -35,6 +35,11 @@ class AgentMemory:
             "timestamp": datetime.now().isoformat(),
             "is_hidden": is_hidden
         }
+        
+        if model_name:
+            message_obj["model_name"] = model_name
+        if total_time is not None:
+            message_obj["total_time"] = round(total_time, 2)
 
         col.insert_one(message_obj)
         

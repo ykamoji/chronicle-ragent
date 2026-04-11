@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { useSession } from "../context/SessionContext";
+import ReactMarkdown from 'react-markdown';
 import { CollapsibleObservation } from "./Observation";
 import "./ChatPanel.css";
 
@@ -93,15 +94,25 @@ export default function ChatPanel() {
     }
   };
 
-  /** Re-submits a query that was previously marked as failed. */
-  const handleRetry = (failedQuery) => {
-    // Remove the failed user message from local state before re-submitting
-    setMessages((prev) => prev.filter((m) => !(m.failed && m.content === failedQuery)));
-    setQuery(failedQuery);
-    // Use a small timeout so state clears before handleSend reads it
-    setTimeout(() => {
-      handleSend(null, failedQuery);
-    }, 0);
+  /** Re-submits the last query. */
+  const handleRetry = async () => {
+    if (messages.length === 0) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role !== "user") return;
+
+    const retryQuery = lastMsg.content;
+
+    // 1. Clean up the failed attempt from the backend first
+    if (sessionId) {
+      await callCleanup(sessionId);
+    }
+
+    // 2. Remove the last user message from local state
+    setMessages((prev) => prev.slice(0, -1));
+    setQuery(retryQuery);
+
+    // 3. Submit immediately
+    handleSend(null, retryQuery);
   };
 
   const handleSend = async (e, overrideQuery) => {
@@ -112,10 +123,10 @@ export default function ChatPanel() {
     setQuery("");
     setMessages((prev) => [...prev, { role: "user", content: userQuery, timestamp: new Date().toISOString() }]);
     setIsLoading(true);
-    setAgentSteps([]);
+    setAgentSteps([]); // Clear previous steps at start of new query
+
 
     let currentSessionId = sessionId;
-    let hadError = false;
 
     try {
       const payload = { query: userQuery };
@@ -191,7 +202,7 @@ export default function ChatPanel() {
                 break;
 
               case "error":
-                hadError = true;
+                // Handled in backend + state drive UI
                 const errObj = {
                   type: "error",
                   content: event.content,
@@ -199,11 +210,18 @@ export default function ChatPanel() {
                 };
                 setAgentSteps((prev) => [...prev, errObj]);
                 currentSteps.push(errObj);
+                // STOP immediately on error
+                if (reader) reader.cancel();
                 break;
             }
           } catch (parseErr) {
             console.warn("Failed to parse SSE event:", parseErr);
           }
+        }
+        // If we hit an error, the break above was for the for-loop, 
+        // we need to break the while-loop too if errObj was pushed.
+        if (currentSteps.length > 0 && currentSteps[currentSteps.length - 1].type === "error") {
+          break;
         }
       }
 
@@ -217,32 +235,21 @@ export default function ChatPanel() {
           ...prev,
           { role: "agent", content: finalAnswer, timestamp: new Date().toISOString(), steps: currentSteps },
         ]);
-        // Refresh from server to ensure local state matches DB exactly
         if (currentSessionId) {
           await loadSession(currentSessionId, true);
         }
       } else {
-        // No answer — query failed. Purge orphaned messages from DB, then mark retry.
+        // Did not finish — ensure cleanup
         await callCleanup(currentSessionId);
-        setMessages((prev) => [
-          // Remove the user message we optimistically added
-          ...prev.slice(0, -1),
-          // Re-add it as failed so the Retry button shows
-          { role: "user", content: userQuery, timestamp: new Date().toISOString(), failed: true },
-        ]);
       }
 
     } catch (err) {
       console.error(err);
-      // Network / connection failure — also clean up and mark for retry
       await callCleanup(currentSessionId);
-      setMessages((prev) => [
-        ...prev.slice(0, -1),
-        { role: "user", content: userQuery, timestamp: new Date().toISOString(), failed: true },
-      ]);
     } finally {
       setIsLoading(false);
-      setAgentSteps([]);
+      // Removed setAgentSteps([]) from here so steps (including error) persist 
+      // until the NEXT query is sent.
     }
   };
 
@@ -265,14 +272,11 @@ export default function ChatPanel() {
 
         {messages.map((msg, index) => (
           <div key={index} style={{ marginBottom: "16px", display: "flex", flexDirection: "column" }}>
-            <div className={`chat-bubble ${msg.role}${msg.failed ? " failed" : ""}`}>
+            <div className={`chat-bubble ${msg.role}`}>
               <div className="chat-content">
-                {msg.content.split("\n").map((line, i) => (
-                  <span key={i}>
-                    {line}
-                    <br />
-                  </span>
-                ))}
+                <ReactMarkdown>
+                  {msg.content}
+                </ReactMarkdown>
               </div>
               {msg.timestamp && (
                 <div className="chat-timestamp" style={{ textAlign: msg.role === 'user' ? 'right' : 'left' }}>
@@ -280,18 +284,6 @@ export default function ChatPanel() {
                 </div>
               )}
             </div>
-            {msg.failed && (
-              <div className="retry-row">
-                <span className="retry-label">Query failed</span>
-                <button
-                  className="retry-btn"
-                  onClick={() => handleRetry(msg.content)}
-                  disabled={isLoading}
-                >
-                  ↩ Retry
-                </button>
-              </div>
-            )}
             {msg.role === "agent" && msg.steps && msg.steps.length > 0 && (
               <div className="reasoning-toggle">
                 <button
@@ -326,7 +318,7 @@ export default function ChatPanel() {
                   <div key={si} className={`agent-step ${step.type}`}>
                     {step.type === "thought" && (
                       <div>
-                        <span className="step-text">{step.content || "Thinking"}</span>
+                        <span className="step-text">{<ReactMarkdown>{step.content}</ReactMarkdown> || "Thinking"}</span>
                         {renderStepAction(step.action)}
                       </div>
                     )}
@@ -346,15 +338,16 @@ export default function ChatPanel() {
           </div>
         ))}
 
-        {/* Live Agent Reasoning Steps */}
-        {isLoading && agentSteps.length > 0 && (
+        {/* Live Agent Reasoning Steps 
+            Persistent if last message is a user question (failed query) */}
+        {(isLoading || (messages.length > 0 && messages[messages.length - 1].role === "user")) && agentSteps.length > 0 && (
           <div className="agent-steps-container">
             {agentSteps.filter(step => step.type !== "tool").map((step, i) => (
               <div key={i} className={`agent-step ${step.type}`}>
                 {step.type === "thought" && (
                   <div>
-                    <span className="step-text">{step.content || "Thinking"}</span>
-                    {renderStepAction(step.action) || "Thinking"}
+                    <span className="step-text">{<ReactMarkdown>{step.content}</ReactMarkdown> || "Thinking"}</span>
+                    {renderStepAction(step.action)}
                     <div style={{ opacity: 0.7 }}>{formatTimeWithSeconds(step.time)}</div>
                   </div>
                 )}
@@ -372,10 +365,14 @@ export default function ChatPanel() {
                 )}
               </div>
             ))}
-            <div className="agent-step loading">
-              <div className="loader"></div>
-              <span className="step-text">Thinking...</span>
-            </div>
+
+            {/* Spinner: ONLY if loading AND no error encountered yet */}
+            {isLoading && !agentSteps.some(s => s.type === "error") && (
+              <div className="agent-step loading">
+                <div className="loader"></div>
+                <span className="step-text">Thinking...</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -384,6 +381,19 @@ export default function ChatPanel() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div className="loader"></div> Planning...
             </div>
+          </div>
+        )}
+
+        {/* Global Retry Option: If last message is User and we are not loading, the agent failed to respond. */}
+        {!isLoading && messages.length > 0 && messages[messages.length - 1].role === "user" && (
+          <div className="retry-row">
+            <span className="retry-label">Agent didn't respond</span>
+            <button
+              className="retry-btn"
+              onClick={handleRetry}
+            >
+              ↩ Retry
+            </button>
           </div>
         )}
       </div>

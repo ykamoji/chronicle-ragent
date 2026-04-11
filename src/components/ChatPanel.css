@@ -224,19 +224,13 @@
   }
 }
 
-/* Failed user message */
-.chat-bubble.user.failed {
-  border-left: 3px solid #f59e0b;
-  opacity: 0.85;
-}
-
 /* Retry row rendered below a failed bubble */
 .retry-row {
   align-self: flex-end;
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 4px;
+  margin-top: -15px;
   animation: fadeIn 0.25s ease-out;
 }
 
@@ -251,7 +245,7 @@
   background: rgba(245, 158, 11, 0.12);
   border: 1px solid rgba(245, 158, 11, 0.45);
   color: #f59e0b;
-  padding: 4px 12px;
+  padding: 8px 16px;
   border-radius: 999px;
   font-size: 0.78rem;
   font-weight: 600;

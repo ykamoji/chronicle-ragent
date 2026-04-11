@@ -16,7 +16,7 @@
   padding: 8px 10px;
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.03);
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
   line-height: 1.3;
   min-width: 0;
@@ -102,7 +102,7 @@
   overflow-y: auto;
   margin-left: 20px;
   margin-bottom: 20px;
-  background: var(--panel-glass-bg);
+  background: var(--bg-dark);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--panel-glass-border);
@@ -179,8 +179,8 @@
   padding: 10px 12px;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.12s ease;
-  font-size: 0.82rem;
+  transition: all 0.12s ease;
+  font-size: 0.9rem;
   color: var(--text-primary);
 }
 
@@ -190,7 +190,6 @@
 
 .model-option.active {
   background: rgba(0, 0, 0, 0.06);
-  font-weight: 600;
 }
 
 /* Radio circle */
@@ -262,7 +261,7 @@
   padding: 6px 10px;
   border-radius: 6px;
   border: 1px solid var(--panel-glass-border);
-  background: rgba(0, 0, 0, 0.02);
+  /* background: rgba(0, 0, 0, 0.02); */
   color: var(--text-primary);
   font-size: 0.82rem;
   text-align: center;

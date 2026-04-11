@@ -40,7 +40,7 @@ export default function ChatPanel() {
   const [agentSteps, setAgentSteps] = useState([]);
   const [expandedSteps, setExpandedSteps] = useState({}); // Tracks which message reasoning is expanded
   const chatWindowRef = useRef(null);
-  const { sessionId, setSessionId, messages, setMessages, loadSession } = useSession();
+  const { sessionId, setSessionId, messages, setMessages, isSessionLoading, loadSession } = useSession();
 
   // Auto-scroll chat
   useEffect(() => {
@@ -263,10 +263,10 @@ export default function ChatPanel() {
       </div>
 
       <div className="chat-window" ref={chatWindowRef}>
-        {messages.length === 0 && !isLoading && (
+        {!isSessionLoading && messages.length === 0 && !isLoading && (
           <div style={{ margin: "auto", textAlign: "center", color: "var(--text-secondary)" }}>
             <h2>Start a conversation</h2>
-            <p>Ask about characters, summaries, or specific text segments.</p>
+            <p>Ask about characters, plots, or relationships.</p>
           </div>
         )}
 
@@ -398,15 +398,27 @@ export default function ChatPanel() {
         )}
       </div>
 
+      {/* Session loading: bouncing typing dots at the bottom of the chat area */}
+      {isSessionLoading && (
+        <div className="session-loading-row">
+          <div className="typing-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <span className="session-loading-label">Loading conversation…</span>
+        </div>
+      )}
+
       <form className="chat-input-area" onSubmit={handleSend}>
         <input
           type="text"
           placeholder="Ask the agent anything..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          disabled={isLoading}
+          disabled={isLoading || isSessionLoading}
         />
-        <button type="submit" disabled={isLoading || !query.trim()}>
+        <button type="submit" disabled={isLoading || isSessionLoading || !query.trim()}>
           Ask
         </button>
       </form>

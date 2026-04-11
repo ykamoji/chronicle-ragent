@@ -274,3 +274,57 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* ─── Session Loading — Bouncing Typing Dots ─────────────────────────── */
+.session-loading-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 12px 20px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.session-loading-label {
+  font-size: 1.25rem;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.45));
+  letter-spacing: 0.02em;
+}
+
+.typing-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.typing-dots span {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-color, #7c6af7);
+  opacity: 0.85;
+  animation: typingBounce 1.2s ease-in-out infinite;
+}
+
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingBounce {
+
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+
+  30% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}

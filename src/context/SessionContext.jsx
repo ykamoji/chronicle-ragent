@@ -11,6 +11,7 @@ export function SessionProvider({ children }) {
   const [currentSummaries, setCurrentSummaries] = useState([]);
   const [ingestionProgress, setIngestionProgress] = useState(null);
   const [sessionsCache, setSessionsCache] = useState({});
+  const [isSessionLoading, setIsSessionLoading] = useState(false);
 
   const loadSession = useCallback(async (id, forceRefresh = false) => {
     // Check cache first unless forced to refresh
@@ -21,6 +22,8 @@ export function SessionProvider({ children }) {
       setCurrentSummaries(cached.summaries || []);
       return;
     }
+
+    setIsSessionLoading(true);
 
     try {
       const [sessRes, msgRes] = await Promise.all([
@@ -78,6 +81,8 @@ export function SessionProvider({ children }) {
       }
     } catch (err) {
       console.error("Failed to load session", err);
+    } finally {
+      setIsSessionLoading(false);
     }
   }, [sessionsCache]);
 
@@ -112,6 +117,7 @@ export function SessionProvider({ children }) {
         setCurrentSummaries,
         ingestionProgress,
         setIngestionProgress,
+        isSessionLoading,
         loadSession,
         startNewChat,
       }}

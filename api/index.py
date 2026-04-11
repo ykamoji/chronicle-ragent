@@ -350,10 +350,15 @@ def get_sessions():
     cursor = collection.find({}, {"_id": 0}).sort("upload_time", -1)
     sessions = []
     for s in cursor:
-        s["chat_logs"] = memory.get_history(s["session_id"])
         sessions.append(s)
     return jsonify(sessions)
 
+
+@app.route("/messages/<session_id>", methods=["GET"])
+def get_messages(session_id):
+    """Fetches the conversation history for a specific session directly from the messages collection."""
+    chat_logs = memory.get_history(session_id)
+    return jsonify(chat_logs)
 
 @app.route("/sessions/<session_id>", methods=["GET", "DELETE"])
 def handle_session(session_id):
@@ -366,19 +371,21 @@ def handle_session(session_id):
         if not doc:
             return jsonify({"error": "Session not found"}), 404
 
-        doc["chat_logs"] = doc.get("messages", [])
-
         return jsonify(doc)
 
     elif request.method == "DELETE":
         sess_col = mongo.get_sessions_collection()
         doc_col = mongo.get_vector_collection()
+        msg_col = mongo.get_messages_collection()
 
-        if sess_col is None or doc_col is None:
+        if sess_col is None or doc_col is None or msg_col is None:
             return jsonify({"error": "DB not connected"}), 503
 
         # 1. Delete session metadata
         sess_result = sess_col.delete_one({"session_id": session_id})
+
+        # 2. Delete standalone messages
+        msg_result = msg_col.delete_many({"session_id": session_id})
 
         # 2. Remove session_id from associated document chunks (don't delete document)
         doc_result = doc_col.update_many({"session_id": session_id}, {"$pull": {"session_id": session_id}})

@@ -13,33 +13,30 @@ class AgentMemory:
         return session_id
 
     def get_history(self, session_id: str) -> list:
-        col = mongo.get_sessions_collection()
+        col = mongo.get_messages_collection()
         if col is None: return []
-        doc = col.find_one({"session_id": session_id})
-        if not doc:
-            return []
-
-        messages = doc.get("messages", [])
-        return messages
+        
+        cursor = col.find({"session_id": session_id}, {"_id": 0}).sort("timestamp", 1)
+        return list(cursor)
 
     def add_message(self, session_id: str, role: str, content: str, is_hidden: bool = False):
-        col = mongo.get_sessions_collection()
+        col = mongo.get_messages_collection()
         if col is None: return
-        doc = col.find_one({"session_id": session_id})
-        if not doc:
+        
+        # Ensure session exists (metadata)
+        sess_col = mongo.get_sessions_collection()
+        if sess_col is not None and not sess_col.find_one({"session_id": session_id}):
             self.create_conversation_with_id(session_id)
         
         message_obj = {
+            "session_id": session_id,
             "role": role.lower(),
             "content": content,
             "timestamp": datetime.now().isoformat(),
             "is_hidden": is_hidden
         }
 
-        col.update_one(
-            {"session_id": session_id},
-            {"$push": {"messages": message_obj}}
-        )
+        col.insert_one(message_obj)
         
     def create_conversation_with_id(self, session_id: str):
         col = mongo.get_sessions_collection()
@@ -52,21 +49,18 @@ class AgentMemory:
         doc = {
             "session_id": session_id,
             "upload_time": datetime.now().isoformat(),
-            "messages": [],
         }
         col.insert_one(doc)
 
     def delete_last_query_internals(self, session_id: str) -> int:
         """Removes the last incomplete query round from MongoDB."""
-        col = mongo.get_sessions_collection()
+        col = mongo.get_messages_collection()
         if col is None:
             return 0
 
-        doc = col.find_one({"session_id": session_id})
-        if not doc:
-            return 0
-
-        messages = doc.get("messages", [])
+        # Find all messages for the session, chronological order
+        messages = list(col.find({"session_id": session_id}).sort("timestamp", 1))
+        
         if not messages:
             return 0
 
@@ -92,15 +86,14 @@ class AgentMemory:
             logging.getLogger(__name__).info(f"Cleanup: session {session_id} is already clean (total={total_input}).")
             return 0
 
-        # Slice the list and persist
-        trimmed = messages[:cut_index]
-        col.update_one(
-            {"session_id": session_id},
-            {"$set": {"messages": trimmed}}
-        )
+        # Gather the ObjectIds of the messages to delete
+        ids_to_delete = [msg["_id"] for msg in messages[cut_index:]]
+        
+        result = col.delete_many({"_id": {"$in": ids_to_delete}})
+        
         import logging
-        logging.getLogger(__name__).info(f"Cleanup: session {session_id} - removed {removed_count} messages. New total: {cut_index}.")
-        return removed_count        
+        logging.getLogger(__name__).info(f"Cleanup: session {session_id} - removed {result.deleted_count} messages. New total: {cut_index}.")
+        return result.deleted_count
 
 # Global memory instance
 memory = AgentMemory()

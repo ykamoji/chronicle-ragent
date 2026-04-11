@@ -341,7 +341,7 @@ export default function ChatPanel() {
         {/* Live Agent Reasoning Steps 
             Persistent if last message is a user question (failed query) */}
         {(isLoading || (messages.length > 0 && messages[messages.length - 1].role === "user")) && agentSteps.length > 0 && (
-          <div className="agent-steps-container">
+          <div className="agent-steps-container live">
             {agentSteps.filter(step => step.type !== "tool").map((step, i) => (
               <div key={i} className={`agent-step ${step.type}`}>
                 {step.type === "thought" && (

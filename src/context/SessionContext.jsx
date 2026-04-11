@@ -23,18 +23,24 @@ export function SessionProvider({ children }) {
     }
 
     try {
-      const res = await fetch(`${API_URL}/sessions/${id}`);
-      if (res.ok) {
-        const data = await res.json();
+      const [sessRes, msgRes] = await Promise.all([
+        fetch(`${API_URL}/sessions/${id}`),
+        fetch(`${API_URL}/messages/${id}`)
+      ]);
+
+      if (sessRes.ok && msgRes.ok) {
+        const data = await sessRes.json();
+        const chatLogs = await msgRes.json();
+
         setSessionId(data.session_id);
         setCurrentSummaries(data.metadata || []);
         setIngestionProgress(data.ingestion_progress || null);
 
-        if (data.chat_logs && data.chat_logs.length > 0) {
+        if (chatLogs && chatLogs.length > 0) {
           const parsedMsgs = [];
           let pendingSteps = [];
 
-          data.chat_logs.forEach((msg) => {
+          chatLogs.forEach((msg) => {
             if (typeof msg !== 'object') return;
 
             if (msg.is_hidden) {

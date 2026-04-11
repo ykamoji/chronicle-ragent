@@ -53,7 +53,6 @@ class AgentMemory:
             "session_id": session_id,
             "upload_time": datetime.now().isoformat(),
             "messages": [],
-            "summary": []
         }
         col.insert_one(doc)
 

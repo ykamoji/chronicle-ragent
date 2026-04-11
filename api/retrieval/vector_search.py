@@ -1,4 +1,5 @@
 import numpy as np
+import re
 import logging
 import os
 import json
@@ -76,13 +77,25 @@ def extract_query_signals(query: str) -> dict:
     )
 
     try:
-        raw_text = response.text.strip()
-        result = json.loads(raw_text)
+        result = safe_json_extract(response.text.strip())
         return result
     except Exception as e:
         logger.warning(f"Failed to parse query signals: {e}")
         return {"characters": [], "keywords": [], "chapters":[]}
 
+def safe_json_extract(text: str) -> dict:
+    try:
+        # Extract first JSON object using regex
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if not match:
+            raise ValueError("No JSON object found")
+
+        json_str = match.group(0)
+        return json.loads(json_str)
+
+    except Exception as e:
+        logger.warning(f"JSON extraction failed: {e}")
+        return {"characters": [], "keywords": [], "chapters": []}
 
 def _apply_filters(docs, characters:List[str] = [], keywords:List[str] = [], chapters:List[str] = []):
     """Filter documents in-memory"""

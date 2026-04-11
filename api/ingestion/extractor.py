@@ -4,7 +4,7 @@ from google import genai
 from google.genai import types
 
 def extract_metadata(chunk_text: str) -> dict:
-    """Uses Google Gemini to extract a summary, chapter title, and character list from text."""
+    """Extract a summary, chapter title, and character list from text."""
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY is not set.")

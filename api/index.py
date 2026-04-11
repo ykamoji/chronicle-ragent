@@ -168,6 +168,20 @@ def process_file_background(text_content: str, session_id: str):
                         sess_col.update_one({"session_id": session_id}, {"$push": {"metadata": item_to_copy}})
                         logger.info(f"Copied metadata for '{chapter_name}' from an existing session.")
 
+                if not existing_sessions:
+                    metadata = extract_metadata(chapter_text)
+                    chapter_summary = metadata.get("summary", "")
+                    if chapter_summary:
+                        sess_col.update_one({"session_id": session_id}, 
+                        {"$push": 
+                            {"metadata": {
+                                "chapter": metadata.get("chapter", "Unknown"), 
+                                "summary": chapter_summary
+                                }
+                            }
+                        })
+                    time.sleep(10)
+                    
                 # We don't skip entirely; we still want to check if embeddings are needed in Phase 2
                 continue
 

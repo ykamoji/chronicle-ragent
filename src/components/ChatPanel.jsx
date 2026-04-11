@@ -79,17 +79,43 @@ export default function ChatPanel() {
     }
   };
 
-  const handleSend = async (e) => {
-    e?.preventDefault();
-    if (!query.trim()) return;
+  /** Calls /query/cleanup to purge the failed round from MongoDB. */
+  const callCleanup = async (sid) => {
+    if (!sid) return;
+    try {
+      await fetch(`${STREAM_URL}/query/cleanup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sid }),
+      });
+    } catch (e) {
+      console.warn("Cleanup call failed:", e);
+    }
+  };
 
-    const userQuery = query.trim();
+  /** Re-submits a query that was previously marked as failed. */
+  const handleRetry = (failedQuery) => {
+    // Remove the failed user message from local state before re-submitting
+    setMessages((prev) => prev.filter((m) => !(m.failed && m.content === failedQuery)));
+    setQuery(failedQuery);
+    // Use a small timeout so state clears before handleSend reads it
+    setTimeout(() => {
+      handleSend(null, failedQuery);
+    }, 0);
+  };
+
+  const handleSend = async (e, overrideQuery) => {
+    e?.preventDefault();
+    const userQuery = (overrideQuery ?? query).trim();
+    if (!userQuery) return;
+
     setQuery("");
     setMessages((prev) => [...prev, { role: "user", content: userQuery, timestamp: new Date().toISOString() }]);
     setIsLoading(true);
     setAgentSteps([]);
 
     let currentSessionId = sessionId;
+    let hadError = false;
 
     try {
       const payload = { query: userQuery };
@@ -165,6 +191,7 @@ export default function ChatPanel() {
                 break;
 
               case "error":
+                hadError = true;
                 const errObj = {
                   type: "error",
                   content: event.content,
@@ -190,24 +217,28 @@ export default function ChatPanel() {
           ...prev,
           { role: "agent", content: finalAnswer, timestamp: new Date().toISOString(), steps: currentSteps },
         ]);
+        // Refresh from server to ensure local state matches DB exactly
+        if (currentSessionId) {
+          await loadSession(currentSessionId, true);
+        }
       } else {
-        // No answer event received — check if there was an error
+        // No answer — query failed. Purge orphaned messages from DB, then mark retry.
+        await callCleanup(currentSessionId);
         setMessages((prev) => [
-          ...prev,
-          { role: "agent", content: "The agent could not produce a final answer.", timestamp: new Date().toISOString(), steps: currentSteps },
+          // Remove the user message we optimistically added
+          ...prev.slice(0, -1),
+          // Re-add it as failed so the Retry button shows
+          { role: "user", content: userQuery, timestamp: new Date().toISOString(), failed: true },
         ]);
-      }
-
-      // Refresh ChatPanel from server to ensure local state matches DB exactly (especially reasoning steps)
-      if (currentSessionId) {
-        await loadSession(currentSessionId, true);
       }
 
     } catch (err) {
       console.error(err);
+      // Network / connection failure — also clean up and mark for retry
+      await callCleanup(currentSessionId);
       setMessages((prev) => [
-        ...prev,
-        { role: "agent", content: "Connection error. The backend may be unavailable. Please try again.", timestamp: new Date().toISOString() },
+        ...prev.slice(0, -1),
+        { role: "user", content: userQuery, timestamp: new Date().toISOString(), failed: true },
       ]);
     } finally {
       setIsLoading(false);
@@ -234,7 +265,7 @@ export default function ChatPanel() {
 
         {messages.map((msg, index) => (
           <div key={index} style={{ marginBottom: "16px", display: "flex", flexDirection: "column" }}>
-            <div className={`chat-bubble ${msg.role}`}>
+            <div className={`chat-bubble ${msg.role}${msg.failed ? " failed" : ""}`}>
               <div className="chat-content">
                 {msg.content.split("\n").map((line, i) => (
                   <span key={i}>
@@ -249,6 +280,18 @@ export default function ChatPanel() {
                 </div>
               )}
             </div>
+            {msg.failed && (
+              <div className="retry-row">
+                <span className="retry-label">Query failed</span>
+                <button
+                  className="retry-btn"
+                  onClick={() => handleRetry(msg.content)}
+                  disabled={isLoading}
+                >
+                  ↩ Retry
+                </button>
+              </div>
+            )}
             {msg.role === "agent" && msg.steps && msg.steps.length > 0 && (
               <div className="reasoning-toggle">
                 <button

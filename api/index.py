@@ -63,6 +63,24 @@ def query_agent():
     })
 
 
+@app.route("/query/cleanup", methods=["POST"])
+def cleanup_failed_query():
+    """Cleans up MongoDB after a query fails to complete.
+
+    Removes the failed user query and all hidden internal messages (agent
+    thoughts, system observations) that were written during the failed round,
+    so the session history stays clean and the query can safely be retried.
+    """
+    data = request.get_json()
+    if not data or "session_id" not in data:
+        return jsonify({"error": "Missing 'session_id' field"}), 400
+
+    session_id = data["session_id"]
+    removed = memory.delete_last_query_internals(session_id)
+    logger.info(f"Cleaned up {removed} messages for failed query in session {session_id}")
+    return jsonify({"removed": removed})
+
+
 @app.route("/ingest-progress/<session_id>", methods=["GET"])
 def ingest_progress(session_id):
     """Streams ingestion progress for a specific session."""

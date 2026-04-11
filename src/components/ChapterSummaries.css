@@ -15,7 +15,7 @@
   background: rgba(0, 0, 0, 0.04);
   display: flex;
   outline: none;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: var(--text-primary);
 }
 
@@ -29,3 +29,23 @@
   font-size: 0.9rem;
   line-height: 1.6;
 }
+
+/* .highlighted-chapter {
+  animation: pulseHighlight 1s ease-in-out;
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 8px rgba(var(--accent-cyan-rgb), 0.5);
+} */
+
+/* @keyframes pulseHighlight {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.02);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+} */

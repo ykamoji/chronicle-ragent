@@ -153,6 +153,9 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
             tool_name, tool_arg = extract_action(llm_text)
 
+            if tool_name == 'summary' and tool_arg.strip() == '':
+                tool_arg = 'all'
+
             # Yield thought event
             if thought_text:
                 yield json.dumps({

@@ -5,9 +5,10 @@ import Sidebar from "../components/Sidebar";
 import ChatPanel from "../components/ChatPanel";
 import DocumentHub from "../components/DocumentHub";
 import ChapterSummaries from "../components/ChapterSummaries";
+import IngestionPanel from "../components/IngestionPanel";
 
 function AppLayout() {
-  const { currentSummaries, ingestionProgress } = useSession();
+  const { currentSummaries, ingestionProgress, isPanelExpanded } = useSession();
 
   const isIngesting = ingestionProgress &&
     ingestionProgress.phase !== "complete" &&
@@ -21,12 +22,8 @@ function AppLayout() {
 
       <ChatPanel />
 
-      <aside className="ingestion-panel glass-panel">
-        {showSummaries ? (
-          <ChapterSummaries currentSummaries={currentSummaries} />
-        ) : (
-          <DocumentHub />
-        )}
+      <aside className={`ingestion-panel glass-panel ${isPanelExpanded ? 'expanded' : 'collapsed'}`}>
+        <IngestionPanel />
       </aside>
     </div>
   );

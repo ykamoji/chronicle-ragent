@@ -360,6 +360,43 @@ def get_messages(session_id):
     chat_logs = memory.get_history(session_id)
     return jsonify(chat_logs)
 
+def cache_session_docs_background(session_id: str):
+    """Background task to load vector docs into cache."""
+    try:
+        vector_col = mongo.get_vector_collection()
+        if vector_col is None:
+            return
+            
+        # Skip if already cached
+        if session_cache.get_vector_docs(session_id) is not None:
+            return
+             
+        cursor = vector_col.find(
+            {"session_id": {"$in": [session_id]}},
+            {"embedding": 1, "text": 1, "chapter": 1, "characters": 1, "_id": 0}
+        )
+        docs = list(cursor)
+        session_cache.set_vector_docs(session_id, docs)
+        logger.info(f"Background cache loaded {len(docs)} docs for session {session_id}")
+    except Exception as e:
+        logger.error(f"Failed to background cache session {session_id}: {e}")
+
+@app.route("/vectors/<session_id>", methods=["GET"])
+def get_vectors(session_id):
+    """Returns all vector doc texts for a session (for reference panel)."""
+    docs = session_cache.get_vector_docs(session_id)
+    if docs is None:
+        vector_col = mongo.get_vector_collection()
+        if vector_col is None:
+            return jsonify({"error": "DB not connected"}), 503
+        docs = list(vector_col.find(
+            {"session_id": {"$in": [session_id]}},
+            {"text": 1, "chapter": 1, "_id": 0}
+        ))
+    cleaned = [{"text": d.get("text", ""), "chapter": d.get("chapter", "")} for d in docs]
+    return jsonify(cleaned)
+
+
 @app.route("/sessions/<session_id>", methods=["GET", "DELETE"])
 def handle_session(session_id):
     if request.method == "GET":
@@ -370,6 +407,11 @@ def handle_session(session_id):
         doc = collection.find_one({"session_id": session_id}, {"_id": 0})
         if not doc:
             return jsonify({"error": "Session not found"}), 404
+
+        # Start background cache load
+        thread = threading.Thread(target=cache_session_docs_background, args=(session_id,))
+        thread.daemon = True
+        thread.start()
 
         return jsonify(doc)
 

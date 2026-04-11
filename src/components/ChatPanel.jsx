@@ -86,7 +86,53 @@ export default function ChatPanel() {
   const [expandedSteps, setExpandedSteps] = useState({}); // Tracks which message reasoning is expanded
   const chatWindowRef = useRef(null);
   const liveThoughtsRef = useRef(null);
-  const { sessionId, setSessionId, messages, setMessages, isSessionLoading, loadSession } = useSession();
+  const {
+    sessionId, setSessionId, messages, currentSummaries,
+    setMessages, isSessionLoading, loadSession,
+    setActiveIngestionTab, setHighlightChapter, setReferenceText,
+    setIsPanelExpanded
+  } = useSession();
+
+  const handleSourceClick = (sourceName) => {
+    setActiveIngestionTab("summaries");
+    setHighlightChapter(sourceName);
+    setIsPanelExpanded(true);
+  };
+
+  const handleBlockClick = async (blockText) => {
+    if (!blockText || !sessionId) return;
+
+    try {
+      // Direct call to Flask (bypassing Next.js proxy if needed, similar to STREAM_URL)
+      const res = await fetch(`http://127.0.0.1:5328/vectors/${sessionId}`);
+      if (!res.ok) return;
+      const vectors = await res.json();
+
+      // Match the text using the first ~80 chars to be safe against truncation/formatting
+      const snippet = blockText.trim().substring(0, 80).toLowerCase();
+      const matchedDoc = vectors.find(doc => doc.text.trim().toLowerCase().startsWith(snippet));
+
+      if (matchedDoc) {
+        setReferenceText(`[Source: ${matchedDoc.chapter}]\n\n${matchedDoc.text}`);
+        setActiveIngestionTab("reference");
+        setIsPanelExpanded(true);
+      } else {
+        const matchedDocSummary = currentSummaries.find(doc => doc.summary.trim().toLowerCase().startsWith(snippet));
+
+        if (matchedDocSummary) {
+          handleSourceClick(matchedDocSummary.chapter);
+        }
+        else {
+          // Fallback: just show the snippet if no match
+          setReferenceText(`Couldn't find full source text. Snippet:\n\n${blockText}`);
+          setActiveIngestionTab("reference");
+          setIsPanelExpanded(true);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch full reference text:", err);
+    }
+  };
 
   // Auto-scroll chat
   useEffect(() => {
@@ -345,7 +391,11 @@ export default function ChatPanel() {
                         </div>
                       )}
                       {step.type === "observation" && (
-                        <CollapsibleObservation content={step.content} />
+                        <CollapsibleObservation
+                          content={step.content}
+                          onSourceClick={handleSourceClick}
+                          onBlockClick={handleBlockClick}
+                        />
                       )}
                       {step.type === "error" && (
                         <div>
@@ -376,7 +426,11 @@ export default function ChatPanel() {
                 )}
                 {step.type === "observation" && (
                   <>
-                    <CollapsibleObservation content={step.content} />
+                    <CollapsibleObservation
+                      content={step.content}
+                      onSourceClick={handleSourceClick}
+                      onBlockClick={handleBlockClick}
+                    />
                     <div style={{ opacity: 0.7 }}>{formatTimeWithSeconds(step.time)}</div>
                   </>
                 )}

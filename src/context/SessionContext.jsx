@@ -12,6 +12,10 @@ export function SessionProvider({ children }) {
   const [ingestionProgress, setIngestionProgress] = useState(null);
   const [sessionsCache, setSessionsCache] = useState({});
   const [isSessionLoading, setIsSessionLoading] = useState(false);
+  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
+  const [referenceText, setReferenceText] = useState(null);
+  const [activeIngestionTab, setActiveIngestionTab] = useState("documents");
+  const [highlightChapter, setHighlightChapter] = useState(null);
 
   const loadSession = useCallback(async (id, forceRefresh = false) => {
     // Check cache first unless forced to refresh
@@ -132,6 +136,14 @@ export function SessionProvider({ children }) {
         isSessionLoading,
         loadSession,
         startNewChat,
+        referenceText,
+        setReferenceText,
+        activeIngestionTab,
+        setActiveIngestionTab,
+        highlightChapter,
+        setHighlightChapter,
+        isPanelExpanded,
+        setIsPanelExpanded,
       }}
     >
       {children}

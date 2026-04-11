@@ -89,7 +89,7 @@ button:active {
   height: 100vh;
   /* padding: 24px; */
   padding-right: 24px;
-  gap: 24px;
+  gap: 12px;
   /* max-width: 1600px; */
   margin: 0 auto;
 }

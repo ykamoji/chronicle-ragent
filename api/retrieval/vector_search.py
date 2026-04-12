@@ -97,47 +97,58 @@ def safe_json_extract(text: str) -> dict:
         logger.warning(f"JSON extraction failed: {e}")
         return {"characters": [], "keywords": [], "chapters": []}
 
-def _apply_filters(docs, characters:List[str] = [], keywords:List[str] = [], chapters:List[str] = []):
-    """Filter documents in-memory"""
+def build_patterns(words):
+    return [re.compile(rf"\b{re.escape(w)}\b") for w in words]
+
+def normalize(x):
+    return (x - x.min()) / (x.max() - x.min() + 1e-6)
+
+def compute_pre_scores(docs, keywords:List[str] = [], characters:List[str] = [], chapters:List[str] = []):
+    """Compute pre-scores for documents based on query signals"""
+
+    keywords = [k.lower() for k in keywords]
+    characters = [c.lower() for c in characters]
+    chapters = [c.lower() for c in chapters]
     
-    filtered = docs
-
-    characters = [c.lower() for c in (characters or [])]
-    keywords = [k.lower() for k in (keywords or [])]
-    chapters = [c.lower() for c in (chapters or [])]
-
     try:
-        if characters:
-            c_filtered = [
-                d for d in filtered
-                if any(c in [dc.lower() for dc in d.get("characters", [])] for c in characters)
-            ]
-            if c_filtered:
-                filtered = c_filtered
-
         if keywords:
-            k_filtered = [
-                    d for d in filtered
-                    if any(k in d.get("text", "").lower() for k in keywords)
-                ]
+            kw_patterns = build_patterns(keywords)
+            kw_scores = np.array([
+                sum(len(p.findall(doc["text"].lower())) for p in kw_patterns)
+                for doc in docs
+            ], dtype=np.float32)
+        else:
+            kw_scores = np.zeros(len(docs), dtype=np.float32)
 
-            # Apply only if not too restrictive
-            if len(k_filtered) >= max(3, int(0.2 * len(filtered))):
-                filtered = k_filtered
-        
+        if characters:
+            char_patterns = build_patterns(characters)
+            char_scores = np.array([
+                sum(len(p.findall(doc["text"].lower())) for p in char_patterns)
+                for doc in docs
+            ], dtype=np.float32)
+        else:
+            char_scores = np.zeros(len(docs), dtype=np.float32)
+
         if chapters:
-            ch_filtered = [
-                d for d in filtered
-                if any(c in d.get("chapter", "").lower() for c in chapters)
-            ]
+            chapter_scores = np.array([
+                1 if any(c in doc.get("chapter", "").lower() for c in chapters) else 0
+                for doc in docs
+            ], dtype=np.float32)
+        else:
+            chapter_scores = np.zeros(len(docs), dtype=np.float32)
 
-            if ch_filtered:
-                filtered = ch_filtered
+        kw_scores = normalize(kw_scores)
+        char_scores = normalize(char_scores)
+
+        return kw_scores, char_scores, chapter_scores
 
     except Exception as e:
         logger.error(f"Error applying filters: {e}")
-        
-    return filtered
+        return (
+            np.zeros(len(docs), dtype=np.float32),
+            np.zeros(len(docs), dtype=np.float32),
+            np.zeros(len(docs), dtype=np.float32),
+        )
 
 
 def perform_vector_search(query: str, session_id: str, characters: List[str] = [], keywords: List[str] = [], chapters:List[str] = [], limit: int = 10) -> List[Dict[str, Any]]:
@@ -148,6 +159,7 @@ def perform_vector_search(query: str, session_id: str, characters: List[str] = [
 
     # 1. Check Cache first
     docs = session_cache.get_vector_docs(session_id)
+    embeddings = session_cache.get_vector_embeddings(session_id)
     
     if not docs:
         # Fetch from MongoDB if not cached
@@ -159,32 +171,51 @@ def perform_vector_search(query: str, session_id: str, characters: List[str] = [
         )
         if docs:
             session_cache.set_vector_docs(session_id, docs)
+            docs = session_cache.get_vector_docs(session_id)
+            embeddings = session_cache.get_vector_embeddings(session_id)
 
     if not docs:
         return []
 
     logger.info(f"Using {len(docs)} documents for vector search in session {session_id}")
 
-    filtered_docs = _apply_filters(docs, characters, keywords, chapters)
+    kw_scores, char_scores, chapter_scores = compute_pre_scores(docs, keywords, characters, chapters)
 
-    logger.info(f"Using {len(filtered_docs)} filtered documents for vector search in session {session_id}")
+    pre_scores = (
+        0.6 * kw_scores +
+        0.25 * char_scores +
+        0.15 * chapter_scores
+    )
+
+    if np.all(pre_scores == 0):
+        candidate_idx = np.arange(len(docs))
+    else:
+        candidate_k = min(300, max(50, int(0.3 * len(docs))))
+        candidate_idx = np.argpartition(pre_scores, -candidate_k)[-candidate_k:]
 
     # 2. Generate embedding for the query
     query_embedding = get_embedding(query, is_query=True)
 
     # 3. Perform local vector search (NumPy math)
-    embeddings = np.ascontiguousarray([doc["embedding"] for doc in filtered_docs], dtype=np.float32)
+    candidate_embeddings = embeddings[candidate_idx]
+    candidate_docs = [docs[i] for i in candidate_idx]
+
+    logger.info(f"Using {len(candidate_docs)} candidate documents for vector search in session {session_id}")
     
     query_vec = np.asarray(query_embedding, dtype=np.float32)
 
-    scores = embeddings @ query_vec
-    
-    top_k_idx = np.argpartition(scores, -limit)[-limit:]
-    top_k_idx = top_k_idx[np.argsort(scores[top_k_idx])[::-1]]
+    scores = candidate_embeddings @ query_vec
 
-    results = [
-        {**filtered_docs[i], "score": float(scores[i])}
-        for i in top_k_idx
-    ]
+    vec_scores = (scores - scores.min()) / (scores.max() - scores.min() + 1e-6)
+
+    final_scores = (
+        0.75 * vec_scores +
+        0.25 * pre_scores[candidate_idx]
+    )
+    
+    top_k_idx = np.argpartition(final_scores, -limit)[-limit:]
+    top_k_idx = top_k_idx[np.argsort(final_scores[top_k_idx])[::-1]]
+
+    results = [candidate_docs[i] for i in top_k_idx]
 
     return results

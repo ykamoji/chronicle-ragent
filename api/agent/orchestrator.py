@@ -171,7 +171,11 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
             if tool_name and save_text.strip():
                 # logger.warn(f"save_text = {save_text}")
-                memory.add_message(session_id, "Agent", (save_text if tool_name.lower() != "finish" else save_text.split('.')[0]), is_hidden=True)
+                if tool_name.lower() == "finish":
+                    parts = save_text.split('.')
+                    if len(parts) > 0:
+                        save_text = parts[0] + '.'
+                memory.add_message(session_id, "Agent", save_text, is_hidden=True)
 
             if not tool_name:
                 logger.warning("No action found in LLM response.")
@@ -214,9 +218,9 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
             obs_text = f"Observation: {observation}\n"
             current_prompt += obs_text
             trimmed_observations = trim_observation_block(obs_text.strip())
-            memory.add_message(session_id, "System", trimmed_observations, is_hidden=True)
-
-            yield json.dumps({"type": "observation", "content": trimmed_observations, "time": datetime.now().isoformat()})
+            if trimmed_observations:
+                memory.add_message(session_id, "System", trimmed_observations, is_hidden=True)
+                yield json.dumps({"type": "observation", "content": trimmed_observations, "time": datetime.now().isoformat()})
 
             time.sleep(app_settings.get_delay())
 

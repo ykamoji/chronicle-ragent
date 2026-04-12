@@ -29,6 +29,22 @@
   gap: 4px;
 }
 
+.chat-content ol,
+.chat-content ul {
+  padding-left: 1.5rem;
+  list-style-position: outside;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.chat-content li {
+  margin-bottom: 0.25rem;
+}
+
+.chat-content strong {
+  font-weight: 600;
+}
+
 .chat-timestamp {
   font-size: 0.7rem;
   opacity: 0.6;
@@ -84,6 +100,25 @@
   border: none;
   animation: fadeIn 0.3s ease-out;
 }
+
+/* .agent-steps-container.live {
+  width: 80%;
+  max-width: 900px;
+  min-height: 200px;
+  max-height: 900px;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  scrollbar-width: none;
+  transition: all 0.3s ease;
+}
+
+.agent-steps-container.live::-webkit-scrollbar {
+  width: 0;
+}
+
+.agent-steps-container.live::-webkit-scrollbar-thumb {
+  border-radius: 0;
+} */
 
 .agent-step {
   display: flex;
@@ -212,6 +247,17 @@
   border-radius: 2px;
 }
 
+.agent-meta-info {
+  font-size: 0.75rem;
+  font-style: italic;
+  margin-left: 8px;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 15px;
+  justify-content: flex-start;
+  margin-bottom: 8px;
+}
+
 @keyframes slideDown {
   from {
     opacity: 0;
@@ -261,4 +307,58 @@
 .retry-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* ─── Session Loading — Bouncing Typing Dots ─────────────────────────── */
+.session-loading-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 12px 20px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.session-loading-label {
+  font-size: 1.25rem;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.45));
+  letter-spacing: 0.02em;
+}
+
+.typing-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.typing-dots span {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-color, #7c6af7);
+  opacity: 0.85;
+  animation: typingBounce 1.2s ease-in-out infinite;
+}
+
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingBounce {
+
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+
+  30% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
 }

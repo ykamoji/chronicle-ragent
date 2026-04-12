@@ -1,13 +1,14 @@
 import threading
 import logging
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
 class SessionCache:
     """Simple in-memory cache for session-specific document and metadata results."""
     def __init__(self):
-        self._vector_docs = {}  # session_id -> list of docs
-        self._metadata = {}     # session_id -> list of metadata objects
+        self._vector_docs = {}     # session_id -> list of docs
+        self._metadata = {}        # session_id -> list of metadata objects
         self._lock = threading.Lock()
 
     def get_vector_docs(self, session_id: str):
@@ -17,6 +18,10 @@ class SessionCache:
     def set_vector_docs(self, session_id: str, docs: list):
         with self._lock:
             logger.info(f"Caching {len(docs)} documents for session: {session_id}")
+            for i, doc in enumerate(docs):
+                doc["_index"] = i
+                if "embedding" in doc:
+                    del doc["embedding"]
             self._vector_docs[session_id] = docs
 
     def get_metadata(self, session_id: str):

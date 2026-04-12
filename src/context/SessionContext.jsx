@@ -1,16 +1,28 @@
 "use client";
-import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 
 const SessionContext = createContext(null);
 
 const API_URL = "";
 
 export function SessionProvider({ children }) {
-  const [sessionId, setSessionId] = useState(null);
+  const [sessionId, setSessionIdState] = useState(null);
+  const sessionIdRef = useRef(null);
+
+  const setSessionId = useCallback((id) => {
+    sessionIdRef.current = id;
+    setSessionIdState(id);
+  }, []);
+
   const [messages, setMessages] = useState([]);
   const [currentSummaries, setCurrentSummaries] = useState([]);
   const [ingestionProgress, setIngestionProgress] = useState(null);
   const [sessionsCache, setSessionsCache] = useState({});
+  const [isSessionLoading, setIsSessionLoading] = useState(false);
+  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
+  const [referenceText, setReferenceText] = useState(null);
+  const [activeIngestionTab, setActiveIngestionTab] = useState("documents");
+  const [highlightChapter, setHighlightChapter] = useState(null);
 
   const loadSession = useCallback(async (id, forceRefresh = false) => {
     // Check cache first unless forced to refresh
@@ -22,19 +34,39 @@ export function SessionProvider({ children }) {
       return;
     }
 
+    // When force-refreshing the *current* session (e.g. after a query
+    // completes), skip clearing messages and the loading spinner so the
+    // UI doesn't briefly flash the "Loading conversation…" animation.
+    // We'll update state atomically once the fetch resolves.
+    const isSilentRefresh = forceRefresh && id === sessionIdRef.current;
+
+    if (!isSilentRefresh) {
+      setSessionId(id);
+      setMessages([]);
+      setCurrentSummaries([]);
+      setIngestionProgress(null);
+      setIsSessionLoading(true);
+    }
+
     try {
-      const res = await fetch(`${API_URL}/sessions/${id}`);
-      if (res.ok) {
-        const data = await res.json();
+      const [sessRes, msgRes] = await Promise.all([
+        fetch(`${API_URL}/sessions/${id}`),
+        fetch(`${API_URL}/messages/${id}`)
+      ]);
+
+      if (sessRes.ok && msgRes.ok) {
+        const data = await sessRes.json();
+        const chatLogs = await msgRes.json();
+
         setSessionId(data.session_id);
         setCurrentSummaries(data.metadata || []);
         setIngestionProgress(data.ingestion_progress || null);
 
-        if (data.chat_logs && data.chat_logs.length > 0) {
+        if (chatLogs && chatLogs.length > 0) {
           const parsedMsgs = [];
           let pendingSteps = [];
 
-          data.chat_logs.forEach((msg) => {
+          chatLogs.forEach((msg) => {
             if (typeof msg !== 'object') return;
 
             if (msg.is_hidden) {
@@ -72,8 +104,10 @@ export function SessionProvider({ children }) {
       }
     } catch (err) {
       console.error("Failed to load session", err);
+    } finally {
+      setIsSessionLoading(false);
     }
-  }, [sessionsCache]);
+  }, [sessionsCache, sessionId]);
 
   const startNewChat = useCallback(() => {
     setSessionId(null);
@@ -106,8 +140,17 @@ export function SessionProvider({ children }) {
         setCurrentSummaries,
         ingestionProgress,
         setIngestionProgress,
+        isSessionLoading,
         loadSession,
         startNewChat,
+        referenceText,
+        setReferenceText,
+        activeIngestionTab,
+        setActiveIngestionTab,
+        highlightChapter,
+        setHighlightChapter,
+        isPanelExpanded,
+        setIsPanelExpanded,
       }}
     >
       {children}

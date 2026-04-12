@@ -34,13 +34,113 @@ export const renderStepAction = (action) => {
   );
 };
 
+const formatTime = (isoString) => {
+  if (!isoString) return "";
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "short",   // Apr, May, etc.
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,    // no AM/PM
+    });
+  } catch (e) {
+    return "";
+  }
+};
+
+const formatTimeWithSeconds = (isoString) => {
+  if (!isoString) return "";
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+  } catch (e) {
+    return "";
+  }
+};
+
+/** Calls /query/cleanup to purge the failed round from MongoDB. */
+const callCleanup = async (sid) => {
+  if (!sid) return;
+  try {
+    await fetch(`${STREAM_URL}/query/cleanup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sid }),
+    });
+  } catch (e) {
+    console.warn("Cleanup call failed:", e);
+  }
+};
+
 export default function ChatPanel() {
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [agentSteps, setAgentSteps] = useState([]);
+  const [streamSessionId, setStreamSessionId] = useState(null);
   const [expandedSteps, setExpandedSteps] = useState({}); // Tracks which message reasoning is expanded
   const chatWindowRef = useRef(null);
-  const { sessionId, setSessionId, messages, setMessages, loadSession } = useSession();
+  const liveThoughtsRef = useRef(null);
+  const {
+    sessionId, setSessionId, messages, currentSummaries,
+    setMessages, isSessionLoading, loadSession,
+    setActiveIngestionTab, setHighlightChapter, setReferenceText,
+    setIsPanelExpanded
+  } = useSession();
+
+  const currentSessionIdRef = useRef(sessionId);
+  useEffect(() => {
+    currentSessionIdRef.current = sessionId;
+  }, [sessionId]);
+
+  const isStreamVisible = sessionId === streamSessionId;
+
+  const handleSourceClick = (sourceName) => {
+    setActiveIngestionTab("summaries");
+    setHighlightChapter(sourceName);
+    setIsPanelExpanded(true);
+  };
+
+  const handleBlockClick = async (blockText) => {
+    if (!blockText || !sessionId) return;
+
+    try {
+      // Direct call to Flask (bypassing Next.js proxy if needed, similar to STREAM_URL)
+      const res = await fetch(`http://127.0.0.1:5328/vectors/${sessionId}`);
+      if (!res.ok) return;
+      const vectors = await res.json();
+
+      // Match the text using the first ~80 chars to be safe against truncation/formatting
+      const snippet = blockText.trim().substring(0, 80).toLowerCase();
+      const matchedDoc = vectors.find(doc => doc.text.trim().toLowerCase().startsWith(snippet));
+
+      if (matchedDoc) {
+        setReferenceText(`[Source: ${matchedDoc.chapter} #${matchedDoc.parent_chapter_index + 1}]\n\n${matchedDoc.text}`);
+        setActiveIngestionTab("reference");
+        setIsPanelExpanded(true);
+      } else {
+        const matchedDocSummary = currentSummaries.find(doc => doc.summary.trim().toLowerCase().startsWith(snippet));
+
+        if (matchedDocSummary) {
+          handleSourceClick(matchedDocSummary.chapter);
+        }
+        else {
+          // Fallback: just show the snippet if no match
+          setReferenceText(`Couldn't find full source text. Snippet:\n\n${blockText}`);
+          setActiveIngestionTab("reference");
+          setIsPanelExpanded(true);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch full reference text:", err);
+    }
+  };
 
   // Auto-scroll chat
   useEffect(() => {
@@ -49,50 +149,6 @@ export default function ChatPanel() {
     }
   }, [messages, isLoading, agentSteps]);
 
-  const formatTime = (isoString) => {
-    if (!isoString) return "";
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleString("en-GB", {
-        day: "2-digit",
-        month: "short",   // Apr, May, etc.
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,    // no AM/PM
-      });
-    } catch (e) {
-      return "";
-    }
-  };
-
-  const formatTimeWithSeconds = (isoString) => {
-    if (!isoString) return "";
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false, // ✅ removes AM/PM
-      });
-    } catch (e) {
-      return "";
-    }
-  };
-
-  /** Calls /query/cleanup to purge the failed round from MongoDB. */
-  const callCleanup = async (sid) => {
-    if (!sid) return;
-    try {
-      await fetch(`${STREAM_URL}/query/cleanup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: sid }),
-      });
-    } catch (e) {
-      console.warn("Cleanup call failed:", e);
-    }
-  };
 
   /** Re-submits the last query. */
   const handleRetry = async () => {
@@ -102,14 +158,14 @@ export default function ChatPanel() {
 
     const retryQuery = lastMsg.content;
 
-    // 1. Clean up the failed attempt from the backend first
+    // 1. Remove the last user message from local state
+    setMessages((prev) => prev.slice(0, -1));
+    setQuery(retryQuery);
+
+    // 2. Clean up the failed attempt from the backend first
     if (sessionId) {
       await callCleanup(sessionId);
     }
-
-    // 2. Remove the last user message from local state
-    setMessages((prev) => prev.slice(0, -1));
-    setQuery(retryQuery);
 
     // 3. Submit immediately
     handleSend(null, retryQuery);
@@ -124,7 +180,7 @@ export default function ChatPanel() {
     setMessages((prev) => [...prev, { role: "user", content: userQuery, timestamp: new Date().toISOString() }]);
     setIsLoading(true);
     setAgentSteps([]); // Clear previous steps at start of new query
-
+    setStreamSessionId(sessionId || null);
 
     let currentSessionId = sessionId;
 
@@ -145,6 +201,8 @@ export default function ChatPanel() {
       let buffer = "";
       let finalAnswer = null;
       let receivedSessionId = null;
+      let responseModel = null;
+      let responseTime = null;
       let currentSteps = [];
 
       while (true) {
@@ -199,6 +257,8 @@ export default function ChatPanel() {
               case "answer":
                 finalAnswer = event.content;
                 receivedSessionId = event.session_id;
+                responseModel = event.model_name;
+                responseTime = event.total_time;
                 break;
 
               case "error":
@@ -227,16 +287,19 @@ export default function ChatPanel() {
 
       if (receivedSessionId) {
         currentSessionId = receivedSessionId;
+        setStreamSessionId(receivedSessionId);
         if (!sessionId) setSessionId(receivedSessionId);
       }
 
       if (finalAnswer) {
-        setMessages((prev) => [
-          ...prev,
-          { role: "agent", content: finalAnswer, timestamp: new Date().toISOString(), steps: currentSteps },
-        ]);
-        if (currentSessionId) {
-          await loadSession(currentSessionId, true);
+        if (currentSessionIdRef.current === currentSessionId) {
+          setMessages((prev) => [
+            ...prev,
+            { role: "agent", content: finalAnswer, timestamp: new Date().toISOString(), steps: currentSteps, model_name: responseModel, total_time: responseTime },
+          ]);
+          if (currentSessionId) {
+            await loadSession(currentSessionId, true);
+          }
         }
       } else {
         // Did not finish — ensure cleanup
@@ -248,10 +311,18 @@ export default function ChatPanel() {
       await callCleanup(currentSessionId);
     } finally {
       setIsLoading(false);
-      // Removed setAgentSteps([]) from here so steps (including error) persist 
-      // until the NEXT query is sent.
     }
   };
+
+  // const scrollToBottom = () => {
+  //   if (liveThoughtsRef.current) {
+  //     liveThoughtsRef.current.scrollIntoView({ behavior: "smooth" });
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   scrollToBottom();
+  // }, [agentSteps]);
 
   return (
     <main className="chat-container glass-panel">
@@ -263,10 +334,10 @@ export default function ChatPanel() {
       </div>
 
       <div className="chat-window" ref={chatWindowRef}>
-        {messages.length === 0 && !isLoading && (
+        {!isSessionLoading && messages.length === 0 && !isLoading && (
           <div style={{ margin: "auto", textAlign: "center", color: "var(--text-secondary)" }}>
             <h2>Start a conversation</h2>
-            <p>Ask about characters, summaries, or specific text segments.</p>
+            <p>Ask about characters, plots, or relationships.</p>
           </div>
         )}
 
@@ -313,35 +384,47 @@ export default function ChatPanel() {
 
             {/* Collapsible Reasoning Block */}
             {msg.role === "agent" && msg.steps && msg.steps.length > 0 && expandedSteps[index] && (
-              <div className="agent-steps-container historical">
-                {msg.steps.filter(step => step.type !== "tool").map((step, si) => (
-                  <div key={si} className={`agent-step ${step.type}`}>
-                    {step.type === "thought" && (
-                      <div>
-                        <span className="step-text">{<ReactMarkdown>{step.content}</ReactMarkdown> || "Thinking"}</span>
-                        {renderStepAction(step.action)}
-                      </div>
-                    )}
-                    {step.type === "observation" && (
-                      <CollapsibleObservation content={step.content} />
-                    )}
-                    {step.type === "error" && (
-                      <div>
-                        <span className="step-text error-text">{step.content}</span>
-                      </div>
-                    )}
-                    <div className="step-time">{formatTimeWithSeconds(step.time)}</div>
+              <>
+                {(msg.model_name || msg.total_time) && (
+                  <div className="agent-meta-info">
+                    <span>{msg.model_name && `${msg.model_name}`}</span>
+                    <span>{msg.total_time && `${msg.total_time}s`}</span>
                   </div>
-                ))}
-              </div>
+                )}
+                <div className="agent-steps-container historical">
+                  {msg.steps.filter(step => step.type !== "tool").map((step, si) => (
+                    <div key={si} className={`agent-step ${step.type}`}>
+                      {step.type === "thought" && (
+                        <div>
+                          <span className="step-text">{<ReactMarkdown>{step.content}</ReactMarkdown> || "Thinking"}</span>
+                          {renderStepAction(step.action)}
+                        </div>
+                      )}
+                      {step.type === "observation" && (
+                        <CollapsibleObservation
+                          content={step.content}
+                          onSourceClick={handleSourceClick}
+                          onBlockClick={handleBlockClick}
+                        />
+                      )}
+                      {step.type === "error" && (
+                        <div>
+                          <span className="step-text error-text">{step.content}</span>
+                        </div>
+                      )}
+                      <div className="step-time">{formatTimeWithSeconds(step.time)}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         ))}
 
         {/* Live Agent Reasoning Steps 
             Persistent if last message is a user question (failed query) */}
-        {(isLoading || (messages.length > 0 && messages[messages.length - 1].role === "user")) && agentSteps.length > 0 && (
-          <div className="agent-steps-container">
+        {isStreamVisible && (isLoading || (messages.length > 0 && messages[messages.length - 1].role === "user")) && agentSteps.length > 0 && (
+          <div className="agent-steps-container live">
             {agentSteps.filter(step => step.type !== "tool").map((step, i) => (
               <div key={i} className={`agent-step ${step.type}`}>
                 {step.type === "thought" && (
@@ -353,7 +436,11 @@ export default function ChatPanel() {
                 )}
                 {step.type === "observation" && (
                   <>
-                    <CollapsibleObservation content={step.content} />
+                    <CollapsibleObservation
+                      content={step.content}
+                      onSourceClick={handleSourceClick}
+                      onBlockClick={handleBlockClick}
+                    />
                     <div style={{ opacity: 0.7 }}>{formatTimeWithSeconds(step.time)}</div>
                   </>
                 )}
@@ -373,10 +460,11 @@ export default function ChatPanel() {
                 <span className="step-text">Thinking...</span>
               </div>
             )}
+            <div ref={liveThoughtsRef} />
           </div>
         )}
 
-        {isLoading && agentSteps.length === 0 && (
+        {isStreamVisible && isLoading && agentSteps.length === 0 && (
           <div className="chat-bubble agent">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div className="loader"></div> Planning...
@@ -387,7 +475,7 @@ export default function ChatPanel() {
         {/* Global Retry Option: If last message is User and we are not loading, the agent failed to respond. */}
         {!isLoading && messages.length > 0 && messages[messages.length - 1].role === "user" && (
           <div className="retry-row">
-            <span className="retry-label">Agent didn't respond</span>
+            <span className="retry-label">Error</span>
             <button
               className="retry-btn"
               onClick={handleRetry}
@@ -398,15 +486,27 @@ export default function ChatPanel() {
         )}
       </div>
 
+      {/* Session loading: bouncing typing dots at the bottom of the chat area */}
+      {isSessionLoading && messages.length == 0 && (
+        <div className="session-loading-row">
+          <div className="typing-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <span className="session-loading-label">Loading conversation…</span>
+        </div>
+      )}
+
       <form className="chat-input-area" onSubmit={handleSend}>
         <input
           type="text"
           placeholder="Ask the agent anything..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          disabled={isLoading}
+          disabled={isLoading || isSessionLoading}
         />
-        <button type="submit" disabled={isLoading || !query.trim()}>
+        <button type="submit" disabled={isLoading || isSessionLoading || !query.trim()} style={{ background: isLoading ? 'gray' : '#000' }}>
           Ask
         </button>
       </form>

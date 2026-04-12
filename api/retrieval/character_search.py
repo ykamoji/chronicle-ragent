@@ -4,30 +4,28 @@ from api.db.cache import session_cache
 
 def perform_character_search(name: str, session_id: str) -> List[Dict[str, Any]]:
     """Performs a character search using MongoDB or session cache."""
-    # 1. Check Cache first
-    docs = session_cache.get_vector_docs(session_id)
+    # 1. Get metadata to find matching chapters and their summaries
+    session_metadata = session_cache.get_metadata(session_id)
+    if session_metadata is None:
+        session_coll = mongo.get_sessions_collection()
+        if session_coll is not None:
+            doc = session_coll.find_one({"session_id": session_id}, {"metadata": 1, "_id": 0})
+            if doc and "metadata" in doc:
+                session_metadata = doc.get("metadata", [])
+                session_cache.set_metadata(session_id, session_metadata)
     
-    if not docs:
-        # Fetch from MongoDB if not cached
-        collection = mongo.get_vector_collection()
-        if collection is None:
-            raise ConnectionError("MongoDB is not connected.")
-            
-        docs = list(collection.find(
-            {"session_id": session_id},
-            {"embedding": 1, "text": 1, "chapter": 1, "characters": 1, "_id": 0}
-        ))
-        if docs:
-            session_cache.set_vector_docs(session_id, docs)
-
-    if not docs:
+    if not session_metadata:
         return []
 
     name_lower = name.lower()
-    results = [
-        {"text": d["text"], "chapter": d["chapter"]}
-        for d in docs
-        if any(name_lower in char.lower() for char in d.get("characters", []))
-    ]
-        
+    results = []
+    
+    for meta in session_metadata:
+        chars = meta.get("characters", [])
+        if any(name_lower in char.lower() for char in chars):
+            results.append({
+                "text": meta.get("summary", ""),
+                "chapter": meta.get("chapter", "")
+            })
+
     return results

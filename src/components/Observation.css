@@ -13,6 +13,7 @@
   color: var(--accent-cyan);
   margin-bottom: 4px;
   font-weight: 700;
+  cursor: pointer;
 }
 
 .paragraph-text {
@@ -23,6 +24,20 @@
   margin: 0;
   /* Removal of old italic style for better readability of search results */
   font-style: normal;
+}
+
+.clickable-block {
+  cursor: pointer;
+  transition: background-color 0.2s ease, opacity 0.2s ease, border-radius 0.2s ease;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  /* offset padding */
+}
+
+.clickable-block:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+  opacity: 1;
+  border-radius: 4px;
 }
 
 /* Observation Toggle */
@@ -91,6 +106,7 @@
   border: 1px solid var(--text-secondary);
   transition: all 0.2s ease;
   font-weight: 500;
+  cursor: pointer;
 }
 
 .source-link:hover {

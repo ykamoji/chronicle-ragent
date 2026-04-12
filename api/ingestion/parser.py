@@ -3,10 +3,6 @@ import re
 import fitz  # PyMuPDF
 from typing import List
 
-# Simple token estimation: 1 token is approx 4 characters
-CHARS_PER_TOKEN = 4
-
-
 def extract_text_from_pdf(filepath: str) -> str:
     """Extracts all text from a PDF file."""
     doc = fitz.open(filepath)
@@ -15,51 +11,76 @@ def extract_text_from_pdf(filepath: str) -> str:
         text += page.get_text() + "\n"
     return text
 
+def split_units(paragraph: str) -> List[str]:
+    return re.split(r'(?<=[\"”?!\.])\s+', paragraph)
 
-def chunk_text(text: str, target_tokens: int = 400, overlap_tokens: int = 75) -> List[str]:
+WORDS_PER_TOKEN = 1 / 1.3
+
+def token_counter(text: str) -> int:
+    return int(len(text.split()) / WORDS_PER_TOKEN)
+
+def chunk_text(text: str, target_tokens: int = 800, overlap_tokens: int = 150) -> List[str]:
     """Splits text into chunks of approximately `target_tokens` size with `overlap_tokens`.
-    Uses paragraph breaks where possible for cleaner chunks.
+    Uses paragraph breaks and sentence boundaries for cleaner chunks.
     """
-    CHARS_PER_TOKEN = 4
-    target_chars = target_tokens * CHARS_PER_TOKEN
-    overlap_chars = overlap_tokens * CHARS_PER_TOKEN
-
+    
     paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
 
     chunks = []
-    current_chunk = ""
+    current_units = []
+    current_token_count = 0
 
     for paragraph in paragraphs:
-        # If paragraph itself is too big → split early
-        if len(paragraph) > target_chars:
-            if current_chunk:
-                chunks.append(current_chunk.strip())
-                current_chunk = ""
+        units = split_units(paragraph)
 
-            words = paragraph.split()
-            temp = ""
-            for word in words:
-                if len(temp) + len(word) + 1 > target_chars:
-                    chunks.append(temp.strip())
-                    temp = word + " "
-                else:
-                    temp += word + " "
-            if temp:
-                chunks.append(temp.strip())
-            continue
+        for unit in units:
+            unit_tokens = token_counter(unit)
 
-        # Normal accumulation
-        if len(current_chunk) + len(paragraph) + 2 <= target_chars:
-            current_chunk += paragraph + "\n\n"
-        else:
-            chunks.append(current_chunk.strip())
+            # Handle large unit (fallback)
+            if unit_tokens > target_tokens:
+                words = unit.split()
+                # Estimate word targets based on this specific unit's token density
+                ratio = len(words) / max(1, unit_tokens)
+                target_words = int(target_tokens * ratio)
+                overlap_words = int(overlap_tokens * ratio)
+                
+                i = 0
+                while i < len(words):
+                    chunk = " ".join(words[i:i + target_words])
+                    chunks.append(chunk)
+                    
+                    if i + target_words >= len(words):
+                        break
+                    # 2. Fix large unit fallback: Increment by (target - overlap) to bridge gaps
+                    i += max(1, target_words - overlap_words)
+                continue
 
-            # Overlap
-            overlap_text = current_chunk[-overlap_chars:]
-            current_chunk = overlap_text + paragraph + "\n\n"
+            # Normal accumulation
+            if current_token_count + unit_tokens <= target_tokens:
+                current_units.append(unit)
+                current_token_count += unit_tokens
+            else:
+                if current_units:
+                    chunks.append(" ".join(current_units))
 
-    if current_chunk.strip():
-        chunks.append(current_chunk.strip())
+                # 3. Sentence-aware overlap: Grab whole sentences counting backwards
+                overlap_units = []
+                overlap_count = 0
+                for u in reversed(current_units):
+                    u_toks = token_counter(u)
+                    if overlap_count + u_toks <= overlap_tokens:
+                        overlap_units.insert(0, u)
+                        overlap_count += u_toks
+                    else:
+                        break
+                
+                # Start the next chunk with the overlapping sentences + the new unit
+                current_units = overlap_units + [unit]
+                current_token_count = overlap_count + unit_tokens
+
+    # Catch the final chunk
+    if current_units:
+        chunks.append(" ".join(current_units))
 
     return chunks
 

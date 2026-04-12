@@ -2,7 +2,7 @@
 import { useState } from "react";
 import "./Observation.css";
 
-export const CollapsibleObservation = ({ content }) => {
+export const CollapsibleObservation = ({ content, onSourceClick, onBlockClick }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
     const processContent = (text) => {
@@ -22,9 +22,6 @@ export const CollapsibleObservation = ({ content }) => {
 
     const blocks = processContent(content);
 
-    console.log(content)
-    console.log(blocks)
-
     const sources = [...new Set(blocks.map(b => b.source))];
     const showToggle = blocks.length > 0;
 
@@ -36,7 +33,11 @@ export const CollapsibleObservation = ({ content }) => {
                     <div className="sources-list">
                         {sources.map((source, idx) => {
                             return (
-                                <span key={idx} className="source-link">
+                                <span
+                                    key={idx}
+                                    className="source-link"
+                                    onClick={() => onSourceClick && onSourceClick(source)}
+                                >
                                     {source}
                                 </span>
                             );
@@ -49,8 +50,13 @@ export const CollapsibleObservation = ({ content }) => {
                 <div className="observation-text-wrapper">
                     {blocks.length > 0 ? blocks.map((block, idx) => (
                         <div key={idx} className="observation-paragraph">
-                            {block.source.length > 0 && <span className="source-header">[Source: {block.source}]</span>}
-                            <p className="paragraph-text">{block.text}</p>
+                            {block.source.length > 0 && <div className="source-header" onClick={() => onBlockClick && onBlockClick(block.text)}>[Source: {block.source}]</div>}
+                            <p
+                                className={`paragraph-text ${onBlockClick ? 'clickable-block' : ''}`}
+                                onClick={() => onBlockClick && onBlockClick(block.text)}
+                            >
+                                {block.text}
+                            </p>
                         </div>
                     )) : <p className="paragraph-text">{content}</p>}
                 </div>

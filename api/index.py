@@ -210,7 +210,8 @@ def process_file_background(text_content: str, session_id: str):
                         {"$push": 
                             {"metadata": {
                                 "chapter": metadata.get("chapter", "Unknown"), 
-                                "summary": chapter_summary
+                                "summary": chapter_summary,
+                                "characters": metadata.get("characters", [])
                                 }
                             }
                         })
@@ -228,7 +229,8 @@ def process_file_background(text_content: str, session_id: str):
                     {"$push": 
                         {"metadata": {
                             "chapter": metadata.get("chapter", "Unknown"), 
-                            "summary": chapter_summary
+                            "summary": chapter_summary,
+                            "characters": metadata.get("characters", [])
                             }
                         }
                     })
@@ -240,14 +242,13 @@ def process_file_background(text_content: str, session_id: str):
                         "text": sub_chunk,
                         "embedding": None,
                         "chapter": metadata.get("chapter", "Unknown"),
-                        "characters": metadata.get("characters", []),
-                        "parent_chapter_index": i,
+                        "parent_chapter_index": j,
                         "chapter_hash": c_hash,
                         "session_id": [session_id]
                     }
                     vector_col.insert_one(doc)
                 
-                time.sleep(10) # Reduced for better demo, original was 20
+                time.sleep(10)
             except Exception as e:
                 logger.error(f"Failed processing chapter {i}: {e}")
 
@@ -350,9 +351,51 @@ def get_sessions():
     cursor = collection.find({}, {"_id": 0}).sort("upload_time", -1)
     sessions = []
     for s in cursor:
-        s["chat_logs"] = memory.get_history(s["session_id"])
         sessions.append(s)
     return jsonify(sessions)
+
+
+@app.route("/messages/<session_id>", methods=["GET"])
+def get_messages(session_id):
+    """Fetches the conversation history for a specific session directly from the messages collection."""
+    chat_logs = memory.get_history(session_id)
+    return jsonify(chat_logs)
+
+def cache_session_docs_background(session_id: str):
+    """Background task to load vector docs into cache."""
+    try:
+        vector_col = mongo.get_vector_collection()
+        if vector_col is None:
+            return
+            
+        # Skip if already cached
+        if session_cache.get_vector_docs(session_id) is not None:
+            return
+             
+        cursor = vector_col.find(
+            {"session_id": {"$in": [session_id]}},
+            {"embedding": 1, "text": 1, "chapter": 1, "_id": 0}
+        )
+        docs = list(cursor)
+        session_cache.set_vector_docs(session_id, docs)
+        logger.info(f"Background cache loaded {len(docs)} docs for session {session_id}")
+    except Exception as e:
+        logger.error(f"Failed to background cache session {session_id}: {e}")
+
+@app.route("/vectors/<session_id>", methods=["GET"])
+def get_vectors(session_id):
+    """Returns all vector doc texts for a session (for reference panel)."""
+    docs = session_cache.get_vector_docs(session_id)
+    if docs is None:
+        vector_col = mongo.get_vector_collection()
+        if vector_col is None:
+            return jsonify({"error": "DB not connected"}), 503
+        docs = list(vector_col.find(
+            {"session_id": {"$in": [session_id]}},
+            {"text": 1, "chapter": 1, "parent_chapter_index": 1, "_id": 0}
+        ))
+    cleaned = [{"text": d.get("text", ""), "chapter": d.get("chapter", ""), "parent_chapter_index": d.get("parent_chapter_index", 0)} for d in docs]
+    return jsonify(cleaned)
 
 
 @app.route("/sessions/<session_id>", methods=["GET", "DELETE"])
@@ -366,19 +409,26 @@ def handle_session(session_id):
         if not doc:
             return jsonify({"error": "Session not found"}), 404
 
-        doc["chat_logs"] = doc.get("messages", [])
+        # Start background cache load
+        thread = threading.Thread(target=cache_session_docs_background, args=(session_id,))
+        thread.daemon = True
+        thread.start()
 
         return jsonify(doc)
 
     elif request.method == "DELETE":
         sess_col = mongo.get_sessions_collection()
         doc_col = mongo.get_vector_collection()
+        msg_col = mongo.get_messages_collection()
 
-        if sess_col is None or doc_col is None:
+        if sess_col is None or doc_col is None or msg_col is None:
             return jsonify({"error": "DB not connected"}), 503
 
         # 1. Delete session metadata
         sess_result = sess_col.delete_one({"session_id": session_id})
+
+        # 2. Delete standalone messages
+        msg_result = msg_col.delete_many({"session_id": session_id})
 
         # 2. Remove session_id from associated document chunks (don't delete document)
         doc_result = doc_col.update_many({"session_id": session_id}, {"$pull": {"session_id": session_id}})

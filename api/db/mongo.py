@@ -17,6 +17,7 @@ class MongoDBClient:
             self.db = None
             self.vector = None
             self.sessions = None
+            self.messages = None
             return
             
         try:
@@ -24,6 +25,7 @@ class MongoDBClient:
             self.db: Database = self.client[mongo_db_name]
             self.vector: Collection = self.db['vector']
             self.sessions: Collection = self.db["sessions"]
+            self.messages: Collection = self.db["messages"]
             logger.info("Successfully connected to MongoDB")
         except Exception as e:
             logger.error(f"Failed to connect to MongoDB: {e}")
@@ -31,12 +33,16 @@ class MongoDBClient:
             self.db = None
             self.vector = None
             self.sessions = None
+            self.messages = None
 
     def get_vector_collection(self) -> Collection:
         return self.vector
 
     def get_sessions_collection(self) -> Collection:
         return self.sessions
+
+    def get_messages_collection(self) -> Collection:
+        return self.messages
 
 # Singleton instance
 mongo = MongoDBClient()

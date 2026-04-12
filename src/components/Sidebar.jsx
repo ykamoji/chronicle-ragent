@@ -105,16 +105,7 @@ export default function Sidebar() {
               }}
               className={`sidebar-item ${sessionId === session.session_id ? "active" : ""}`}
             >
-              <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {(() => {
-                  const firstMsg = session.chat_logs?.[0];
-                  if (!firstMsg) return session.summary?.[0]?.substring(0, 15) || "Unnamed Session";
-                  if (typeof firstMsg === 'string') return firstMsg.substring(0, 15).replace("User: ", "");
-                  const userMsg = session.chat_logs.find(m => m.role === 'user');
-                  return userMsg?.content?.substring(0, 15) || "Search Session";
-                })()}
-              </div>
-
+              {session.chat_name || `Session ${session.session_id.slice(0, 8)}`}
               <button
                 className="session-menu-trigger"
                 onClick={(e) => {

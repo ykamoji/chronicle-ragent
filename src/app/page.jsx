@@ -19,9 +19,7 @@ function AppLayout() {
   return (
     <div className="dashboard-layout">
       <Sidebar />
-
       <ChatPanel />
-
       <aside className={`ingestion-panel glass-panel ${isPanelExpanded ? 'expanded' : 'collapsed'}`}>
         <IngestionPanel />
       </aside>

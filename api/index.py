@@ -248,7 +248,7 @@ def process_file_background(text_content: str, session_id: str):
                     }
                     vector_col.insert_one(doc)
                 
-                time.sleep(10) # Reduced for better demo, original was 20
+                time.sleep(10)
             except Exception as e:
                 logger.error(f"Failed processing chapter {i}: {e}")
 

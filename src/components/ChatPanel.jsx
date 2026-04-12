@@ -83,6 +83,7 @@ export default function ChatPanel() {
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [agentSteps, setAgentSteps] = useState([]);
+  const [streamSessionId, setStreamSessionId] = useState(null);
   const [expandedSteps, setExpandedSteps] = useState({}); // Tracks which message reasoning is expanded
   const chatWindowRef = useRef(null);
   const liveThoughtsRef = useRef(null);
@@ -92,6 +93,13 @@ export default function ChatPanel() {
     setActiveIngestionTab, setHighlightChapter, setReferenceText,
     setIsPanelExpanded
   } = useSession();
+
+  const currentSessionIdRef = useRef(sessionId);
+  useEffect(() => {
+    currentSessionIdRef.current = sessionId;
+  }, [sessionId]);
+
+  const isStreamVisible = sessionId === streamSessionId;
 
   const handleSourceClick = (sourceName) => {
     setActiveIngestionTab("summaries");
@@ -141,6 +149,7 @@ export default function ChatPanel() {
     }
   }, [messages, isLoading, agentSteps]);
 
+
   /** Re-submits the last query. */
   const handleRetry = async () => {
     if (messages.length === 0) return;
@@ -171,7 +180,7 @@ export default function ChatPanel() {
     setMessages((prev) => [...prev, { role: "user", content: userQuery, timestamp: new Date().toISOString() }]);
     setIsLoading(true);
     setAgentSteps([]); // Clear previous steps at start of new query
-
+    setStreamSessionId(sessionId || null);
 
     let currentSessionId = sessionId;
 
@@ -278,16 +287,19 @@ export default function ChatPanel() {
 
       if (receivedSessionId) {
         currentSessionId = receivedSessionId;
+        setStreamSessionId(receivedSessionId);
         if (!sessionId) setSessionId(receivedSessionId);
       }
 
       if (finalAnswer) {
-        setMessages((prev) => [
-          ...prev,
-          { role: "agent", content: finalAnswer, timestamp: new Date().toISOString(), steps: currentSteps, model_name: responseModel, total_time: responseTime },
-        ]);
-        if (currentSessionId) {
-          await loadSession(currentSessionId, true);
+        if (currentSessionIdRef.current === currentSessionId) {
+          setMessages((prev) => [
+            ...prev,
+            { role: "agent", content: finalAnswer, timestamp: new Date().toISOString(), steps: currentSteps, model_name: responseModel, total_time: responseTime },
+          ]);
+          if (currentSessionId) {
+            await loadSession(currentSessionId, true);
+          }
         }
       } else {
         // Did not finish — ensure cleanup
@@ -299,8 +311,6 @@ export default function ChatPanel() {
       await callCleanup(currentSessionId);
     } finally {
       setIsLoading(false);
-      // Removed setAgentSteps([]) from here so steps (including error) persist 
-      // until the NEXT query is sent.
     }
   };
 
@@ -413,7 +423,7 @@ export default function ChatPanel() {
 
         {/* Live Agent Reasoning Steps 
             Persistent if last message is a user question (failed query) */}
-        {(isLoading || (messages.length > 0 && messages[messages.length - 1].role === "user")) && agentSteps.length > 0 && (
+        {isStreamVisible && (isLoading || (messages.length > 0 && messages[messages.length - 1].role === "user")) && agentSteps.length > 0 && (
           <div className="agent-steps-container live">
             {agentSteps.filter(step => step.type !== "tool").map((step, i) => (
               <div key={i} className={`agent-step ${step.type}`}>
@@ -454,7 +464,7 @@ export default function ChatPanel() {
           </div>
         )}
 
-        {isLoading && agentSteps.length === 0 && (
+        {isStreamVisible && isLoading && agentSteps.length === 0 && (
           <div className="chat-bubble agent">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div className="loader"></div> Planning...

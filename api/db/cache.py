@@ -37,13 +37,11 @@ class SessionCache:
         with self._lock:
             logger.info(f"Invalidating cache for session: {session_id}")
             self._vector_docs.pop(session_id, None)
-            self._vector_embeddings.pop(session_id, None)
             self._metadata.pop(session_id, None)
 
     def clear(self):
         with self._lock:
             self._vector_docs.clear()
-            self._vector_embeddings.clear()
             self._metadata.clear()
 
 # Singleton instance

@@ -1,12 +1,19 @@
 "use client";
-import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 
 const SessionContext = createContext(null);
 
 const API_URL = "";
 
 export function SessionProvider({ children }) {
-  const [sessionId, setSessionId] = useState(null);
+  const [sessionId, setSessionIdState] = useState(null);
+  const sessionIdRef = useRef(null);
+
+  const setSessionId = useCallback((id) => {
+    sessionIdRef.current = id;
+    setSessionIdState(id);
+  }, []);
+
   const [messages, setMessages] = useState([]);
   const [currentSummaries, setCurrentSummaries] = useState([]);
   const [ingestionProgress, setIngestionProgress] = useState(null);
@@ -31,7 +38,7 @@ export function SessionProvider({ children }) {
     // completes), skip clearing messages and the loading spinner so the
     // UI doesn't briefly flash the "Loading conversation…" animation.
     // We'll update state atomically once the fetch resolves.
-    const isSilentRefresh = forceRefresh && id === sessionId;
+    const isSilentRefresh = forceRefresh && id === sessionIdRef.current;
 
     if (!isSilentRefresh) {
       setSessionId(id);
@@ -100,7 +107,7 @@ export function SessionProvider({ children }) {
     } finally {
       setIsSessionLoading(false);
     }
-  }, [sessionsCache]);
+  }, [sessionsCache, sessionId]);
 
   const startNewChat = useCallback(() => {
     setSessionId(null);

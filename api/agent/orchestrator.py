@@ -153,7 +153,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
             tool_name, tool_arg = extract_action(llm_text)
 
-            if tool_name == 'summary' and tool_arg.strip() == '':
+            if tool_name == 'summary' and (tool_arg is None or tool_arg.strip() == ''):
                 tool_arg = 'all'
 
             # Yield thought event
@@ -189,7 +189,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
                 memory.add_message(session_id, "Agent", tool_arg, is_hidden=False, model_name=model_name, total_time=total_time)
 
-                # Generate a chat name from the first user query (non-blocking)
+                # Generate a chat name from the final response (non-blocking)
                 import threading
                 t = threading.Thread(target=memory.set_chat_name, args=(session_id, tool_arg), daemon=True)
                 t.start()

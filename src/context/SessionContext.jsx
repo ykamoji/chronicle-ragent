@@ -23,6 +23,20 @@ export function SessionProvider({ children }) {
   const [referenceText, setReferenceText] = useState(null);
   const [activeIngestionTab, setActiveIngestionTab] = useState("documents");
   const [highlightChapter, setHighlightChapter] = useState(null);
+  const [sessionList, setSessionList] = useState([]);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+
+  const fetchSessions = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/sessions`);
+      if (res.ok) {
+        const data = await res.json();
+        setSessionList(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch sessions", err);
+    }
+  }, []);
 
   const loadSession = useCallback(async (id, forceRefresh = false) => {
     // Check cache first unless forced to refresh
@@ -114,7 +128,8 @@ export function SessionProvider({ children }) {
     setMessages([]);
     setCurrentSummaries([]);
     setIngestionProgress(null);
-  }, []);
+    setIsPanelExpanded(true);
+  }, [isPanelExpanded]);
 
   // Auto-sync local state to cache whenever it changes for the active session
   useEffect(() => {
@@ -151,6 +166,11 @@ export function SessionProvider({ children }) {
         setHighlightChapter,
         isPanelExpanded,
         setIsPanelExpanded,
+        sessionList,
+        setSessionList,
+        fetchSessions,
+        showAnalytics,
+        setShowAnalytics,
       }}
     >
       {children}

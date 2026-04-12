@@ -57,7 +57,7 @@ class AgentMemory:
         }
         col.insert_one(doc)
 
-    def set_chat_name(self, session_id: str, agent_answer: str) -> None:
+    def set_chat_name(self, session_id: str, agent_answer: str) -> str | None:
         """Generates a short chat title from the first agent answer and stores it in the session document.
 
         Only sets the name once — if a chat_name already exists it is left unchanged.
@@ -65,12 +65,12 @@ class AgentMemory:
         """
         col = mongo.get_sessions_collection()
         if col is None:
-            return
+            return None
 
         # Only name sessions that don't have one yet
         doc = col.find_one({"session_id": session_id}, {"chat_name": 1})
         if not doc or doc.get("chat_name"):
-            return
+            return None
 
         try:
             import os
@@ -80,7 +80,7 @@ class AgentMemory:
 
             api_key = os.getenv("GEMINI_API_KEY")
             if not api_key:
-                return
+                return None
 
             client = genai.Client(api_key=api_key)
             prompt = (
@@ -104,9 +104,11 @@ class AgentMemory:
             )
             import logging
             logging.getLogger(__name__).info(f"Chat name set for session {session_id}: '{chat_name}'")
+            return chat_name
         except Exception as e:
             import logging
             logging.getLogger(__name__).warning(f"Failed to generate chat name for session {session_id}: {e}")
+            return None
 
     def delete_last_query_internals(self, session_id: str) -> int:
         """Removes the last incomplete query round from MongoDB."""
@@ -150,6 +152,29 @@ class AgentMemory:
         import logging
         logging.getLogger(__name__).info(f"Cleanup: session {session_id} - removed {result.deleted_count} messages. New total: {cut_index}.")
         return result.deleted_count
+
+    def log_query_analytics(self, session_id: str, query: str, metrics: list):
+        """Flushes a list of tool metrics to MongoDB analytics collection."""
+        if not metrics:
+            return
+            
+        col = mongo.get_analytics_collection()
+        if col is None:
+            return
+            
+        timestamp = datetime.now().isoformat()
+        docs_to_insert = []
+        for m in metrics:
+            doc = {
+                "session_id": session_id,
+                "query": query,
+                "timestamp": timestamp,
+                **m
+            }
+            docs_to_insert.append(doc)
+            
+        if docs_to_insert:
+            col.insert_many(docs_to_insert)
 
 # Global memory instance
 memory = AgentMemory()

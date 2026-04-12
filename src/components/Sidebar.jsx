@@ -9,25 +9,12 @@ const API_URL = "";
 
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [sessionList, setSessionList] = useState([]);
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
-  const { sessionId, loadSession, startNewChat } = useSession();
+  const { sessionId, loadSession, startNewChat, sessionList, setSessionList, fetchSessions } = useSession();
   const prevSessionIdRef = useRef(null);
   const menuRef = useRef(null);
-
-  const fetchSessions = async () => {
-    try {
-      const res = await fetch(`${API_URL}/sessions`);
-      if (res.ok) {
-        const data = await res.json();
-        setSessionList(data);
-      }
-    } catch (err) {
-      console.error("Failed to fetch sessions", err);
-    }
-  };
 
   const handleDeleteClick = (e, id) => {
     e.stopPropagation();
@@ -57,7 +44,7 @@ export default function Sidebar() {
 
   useEffect(() => {
     fetchSessions();
-  }, []);
+  }, [fetchSessions]);
 
   // Re-fetch session list ONLY when a new session is originated
   useEffect(() => {

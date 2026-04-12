@@ -303,12 +303,23 @@ def ingest_document():
     file = request.files.get("file")
     raw_text = request.form.get("raw_text")
     session_id = request.form.get("session_id")
+    source_filename = request.form.get("filename", "")
 
     if not file and not raw_text:
         return jsonify({"error": "Must provide either a file or raw_text"}), 400
 
     if not session_id:
         session_id = memory.create_conversation()
+
+    # Save source filename to session document if provided
+    if source_filename:
+        sess_col = mongo.get_sessions_collection()
+        if sess_col is not None:
+            sess_col.update_one(
+                {"session_id": session_id},
+                {"$set": {"source_filename": source_filename}},
+                upsert=True
+            )
 
     text_to_process = ""
 
@@ -396,6 +407,111 @@ def get_vectors(session_id):
         ))
     cleaned = [{"text": d.get("text", ""), "chapter": d.get("chapter", ""), "parent_chapter_index": d.get("parent_chapter_index", 0)} for d in docs]
     return jsonify(cleaned)
+
+
+@app.route("/messages-analytics", methods=["GET"])
+def get_messages_analytics():
+    """Retrieves message-level analytics (agent messages with answer times and model names).
+
+    Query params:
+    - session_id: Filter by session (default: 'all')
+    - from: ISO date string (optional)
+    - to: ISO date string (optional)
+
+    Returns agent messages where is_hidden=false with model_name and total_time.
+    """
+    messages_col = mongo.get_messages_collection()
+    if messages_col is None:
+        return jsonify({"error": "DB not connected"}), 503
+
+    session_id_param = request.args.get("session_id", "all")
+    from_date = request.args.get("from")
+    to_date = request.args.get("to")
+
+    # Build query filter
+    query_filter = {
+        "role": "agent",
+        "is_hidden": False
+    }
+
+    if session_id_param != "all" and session_id_param:
+        query_filter["session_id"] = session_id_param
+
+    if from_date or to_date:
+        query_filter["timestamp"] = {}
+        if from_date:
+            query_filter["timestamp"]["$gte"] = from_date
+        if to_date:
+            query_filter["timestamp"]["$lte"] = to_date
+
+    # Fetch all matching messages
+    try:
+        raw_docs = list(messages_col.find(query_filter, {"_id": 0}).sort("timestamp", -1))
+    except Exception as e:
+        logger.error(f"Messages analytics query failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+    # Extract unique models and sessions
+    models = list(set(d.get("model_name") for d in raw_docs if d.get("model_name")))
+    sessions = list(set(d.get("session_id") for d in raw_docs if d.get("session_id")))
+
+    return jsonify({
+        "raw": raw_docs,
+        "models": sorted(models),
+        "sessions": sorted(sessions),
+        "total_records": len(raw_docs)
+    })
+
+
+@app.route("/analytics", methods=["GET"])
+def get_analytics():
+    """Retrieves analytics data from MongoDB with optional filtering.
+
+    Query params:
+    - session_id: Filter by session (default: 'all')
+    - from: ISO date string (optional)
+    - to: ISO date string (optional)
+
+    Returns aggregated analytics including raw data, session list, and tool names.
+    """
+    analytics_col = mongo.get_analytics_collection()
+    if analytics_col is None:
+        return jsonify({"error": "DB not connected"}), 503
+
+    session_id_param = request.args.get("session_id", "all")
+    from_date = request.args.get("from")
+    to_date = request.args.get("to")
+
+    # Build query filter
+    query_filter = {}
+
+    if session_id_param != "all" and session_id_param:
+        query_filter["session_id"] = session_id_param
+
+    if from_date or to_date:
+        query_filter["timestamp"] = {}
+        if from_date:
+            query_filter["timestamp"]["$gte"] = from_date
+        if to_date:
+            query_filter["timestamp"]["$lte"] = to_date
+
+    # Fetch all matching analytics
+    try:
+        raw_docs = list(analytics_col.find(query_filter, {"_id": 0}).sort("timestamp", -1))
+    except Exception as e:
+        logger.error(f"Analytics query failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+    # Extract unique sessions and tool names
+    sessions = list(set(d.get("session_id") for d in raw_docs if d.get("session_id")))
+    tool_names = list(set(d.get("tool_name") for d in raw_docs if d.get("tool_name")))
+
+    return jsonify({
+        "raw": raw_docs,
+        "sessions": sorted(sessions),
+        "tool_names": sorted(tool_names),
+        "total_records": len(raw_docs)
+    })
 
 
 @app.route("/sessions/<session_id>", methods=["GET", "DELETE"])

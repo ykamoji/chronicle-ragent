@@ -88,6 +88,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
     SYSTEM_PROMPT_WITH_THINK = f"<|think|>\n{SYSTEM_PROMPT}"
     start_time = time.time()
+    query_analytics = []
 
     try:
         # Initialize conversation
@@ -142,6 +143,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
             except Exception as e:
                 logger.error(f"LLM call failed: {e}")
                 memory.add_message(session_id, "Agent", f"LLM Error: {e}", is_hidden=True)
+                memory.log_query_analytics(session_id, query, query_analytics)
                 yield json.dumps({"type": "error", "content": f"LLM error: {e}", "time": datetime.now().isoformat()})
                 return
 
@@ -152,6 +154,8 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
             thought_text = thought_match.group(1).strip() if thought_match else llm_text
 
             tool_name, tool_arg = extract_action(llm_text)
+
+            tool_arg = tool_arg.strip('"')
 
             if tool_name == 'summary' and (tool_arg is None or tool_arg.strip() == ''):
                 tool_arg = 'all'
@@ -175,6 +179,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                     parts = save_text.split('.')
                     if len(parts) > 0:
                         save_text = parts[0] + '.'
+
                 memory.add_message(session_id, "Agent", save_text, is_hidden=True)
 
             if not tool_name:
@@ -189,11 +194,6 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
                 memory.add_message(session_id, "Agent", tool_arg, is_hidden=False, model_name=model_name, total_time=total_time)
 
-                # Generate a chat name from the final response (non-blocking)
-                import threading
-                t = threading.Thread(target=memory.set_chat_name, args=(session_id, tool_arg), daemon=True)
-                t.start()
-
                 yield json.dumps({
                     "type": "answer",
                     "content": tool_arg,
@@ -202,6 +202,19 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                     "total_time": round(total_time, 2),
                     "time": datetime.now().isoformat()
                 })
+
+                # Generate a chat name from the final response (in-stream)
+                new_chat_name = memory.set_chat_name(session_id, tool_arg)
+                if new_chat_name:
+                    yield json.dumps({
+                        "type": "chat_name",
+                        "chat_name": new_chat_name,
+                        "session_id": session_id,
+                        "time": datetime.now().isoformat()
+                    })
+                
+                # Flush analytics data
+                memory.log_query_analytics(session_id, query, query_analytics)
                 return
 
             # Yield tool call event
@@ -209,7 +222,9 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
             # Run the tool
             if tool_name in TOOLS:
-                observation = TOOLS[tool_name](tool_arg, session_id)
+                observation, metrics = TOOLS[tool_name](tool_arg, session_id)
+                if metrics:
+                    query_analytics.append(metrics)
             else:
                 observation = f"System Error: Tool '{tool_name}' not found. Available tools: {', '.join(TOOLS.keys())}, finish"   
 
@@ -226,8 +241,13 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
         final_msg = "Agent reached maximum steps without finding a final answer."
         logger.warning(final_msg)
+        memory.log_query_analytics(session_id, query, query_analytics)
         yield json.dumps({"type": "answer", "content": final_msg, "session_id": session_id, "time": datetime.now().isoformat()})
 
     except Exception as e:
         logger.error(f"Agent stream error: {e}")
+        try:
+            memory.log_query_analytics(session_id, query, query_analytics)
+        except Exception:
+            pass
         yield json.dumps({"type": "error", "content": f"Agent error: {e}", "time": datetime.now().isoformat()})

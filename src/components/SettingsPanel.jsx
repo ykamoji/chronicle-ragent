@@ -1,10 +1,12 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { useSession } from "../context/SessionContext";
 import "./SettingsPanel.css";
 
 const API_URL = "";
 
 export default function SettingsPanel({ isCollapsed }) {
+  const { setShowAnalytics } = useSession();
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState(null);
   const [delayValue, setDelayValue] = useState("");
@@ -89,7 +91,7 @@ export default function SettingsPanel({ isCollapsed }) {
           onClick={() => { setOpen(true); fetchSettings(); }}
         >
           <span>⚙</span>
-          <span className="settings-label-text">Settings</span>
+          <span className="settings-label-text">Settings & Help</span>
         </button>
       </div>
 
@@ -150,6 +152,25 @@ export default function SettingsPanel({ isCollapsed }) {
 
             {/* Dummy actions */}
             <div className="settings-action-list">
+              <button className="settings-action-item" onClick={() => { setShowAnalytics(true); setOpen(false); }}>
+                <span className="settings-action-icon" style={{ paddingTop: "4px" }}>
+                  <svg
+                    viewBox="0 0 24 24"
+                    width={18}
+                    height={18}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M3 12a9 9 0 1 0 3-6.7" />
+                    <polyline points="3 3 3 9 9 9" />
+                    <path d="M12 7v5l3 2" />
+                  </svg>
+                </span>
+                Activity
+              </button>
               <button className="settings-action-item" onClick={() => handleDummyAction("Help")}>
                 <span className="settings-action-icon">?</span>
                 Help

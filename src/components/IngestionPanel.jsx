@@ -89,6 +89,7 @@ export default function IngestionPanel() {
           <button
             className={`tab-item ${activeIngestionTab === "reference" ? "active" : ""}`}
             onClick={() => { setActiveIngestionTab("reference"); setIsPanelExpanded(true); }}
+            disabled={!referenceText && activeIngestionTab !== "reference"}
           >
             Reference
             {referenceText && <span className="tab-badge"></span>}

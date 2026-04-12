@@ -28,7 +28,7 @@ export const renderStepAction = (action) => {
     <div className="step-action">
       <span className="step-tool">{tool}</span>
       {rawTool !== "finish" && (
-        <span className="step-chip">{query}</span>
+        <span className="step-chip">{tool === 'Summary' ? (query || 'All') : query}</span>
       )}
     </div>
   );
@@ -91,7 +91,7 @@ export default function ChatPanel() {
     sessionId, setSessionId, messages, currentSummaries,
     setMessages, isSessionLoading, loadSession,
     setActiveIngestionTab, setHighlightChapter, setReferenceText,
-    setIsPanelExpanded
+    setIsPanelExpanded, fetchSessions
   } = useSession();
 
   const currentSessionIdRef = useRef(sessionId);
@@ -259,6 +259,11 @@ export default function ChatPanel() {
                 receivedSessionId = event.session_id;
                 responseModel = event.model_name;
                 responseTime = event.total_time;
+                break;
+
+              case "chat_name":
+                // Session title is now set in DB, refresh sidebar list
+                await fetchSessions();
                 break;
 
               case "error":

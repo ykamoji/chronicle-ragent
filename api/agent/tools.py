@@ -14,7 +14,7 @@ def tool_vector_search(query: str, session_id: str) -> str:
         # Extract signals from query
         signals = extract_query_signals(query)
         logger.info(f"Extracted signals: {signals}")
-        results = perform_vector_search(query=query, session_id=session_id, limit=10, **signals)
+        results = perform_vector_search(query=query, session_id=session_id, limit=7, **signals)
         if not results:
             return "No matching documents found in vector search."
         rendered = []
@@ -31,7 +31,7 @@ def tool_keyword_search(query: str, session_id: str) -> str:
     """Searches for exact matches or regex keywords in the documents."""
     logger.info(f"Running keyword search for: {query} (Session: {session_id})")
     try:
-        results = perform_keyword_search(query, session_id, limit=3)
+        results = perform_keyword_search(query, session_id, limit=5)
         if not results:
             return "No matching documents found in keyword search."
         rendered = []

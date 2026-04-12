@@ -151,7 +151,7 @@ def compute_pre_scores(docs, keywords:List[str] = [], characters:List[str] = [],
         )
 
 
-def perform_vector_search(query: str, session_id: str, characters: List[str] = [], keywords: List[str] = [], chapters:List[str] = [], limit: int = 10) -> List[Dict[str, Any]]:
+def perform_vector_search(query: str, session_id: str, characters: List[str] = [], keywords: List[str] = [], chapters:List[str] = [], limit: int = 7) -> List[Dict[str, Any]]:
     """Performs a vector search against MongoDB Atlas using cosine similarity."""
     vector_collection = mongo.get_vector_collection()
     if vector_collection is None:

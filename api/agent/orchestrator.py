@@ -153,6 +153,8 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
             tool_name, tool_arg = extract_action(llm_text)
 
+            tool_arg = tool_arg.strip('"')
+
             if tool_name == 'summary' and (tool_arg is None or tool_arg.strip() == ''):
                 tool_arg = 'all'
 
@@ -175,6 +177,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                     parts = save_text.split('.')
                     if len(parts) > 0:
                         save_text = parts[0] + '.'
+
                 memory.add_message(session_id, "Agent", save_text, is_hidden=True)
 
             if not tool_name:

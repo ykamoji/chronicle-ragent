@@ -127,7 +127,8 @@ export function SessionProvider({ children }) {
     setMessages([]);
     setCurrentSummaries([]);
     setIngestionProgress(null);
-  }, []);
+    setIsPanelExpanded(true);
+  }, [isPanelExpanded]);
 
   // Auto-sync local state to cache whenever it changes for the active session
   useEffect(() => {

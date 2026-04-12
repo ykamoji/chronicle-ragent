@@ -7,7 +7,7 @@ const API_URL = "";
 
 export default function DocumentHub() {
   const [uploadStatus, setUploadStatus] = useState("");
-  const { sessionId, setSessionId, loadSession, ingestionProgress, setIngestionProgress } = useSession();
+  const { sessionId, setSessionId, loadSession, ingestionProgress, setIngestionProgress, setActiveIngestionTab } = useSession();
 
   // Resume tracking if session already exists and is ingesting
   useEffect(() => {
@@ -89,6 +89,7 @@ export default function DocumentHub() {
         eventSource.close();
         if (data.phase === "complete") {
           setUploadStatus("Ingestion complete!");
+          setActiveIngestionTab("summaries")
         } else {
           setUploadStatus(`Ingestion failed: ${data.error || "Unknown error"}`);
         }

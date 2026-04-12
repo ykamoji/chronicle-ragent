@@ -28,7 +28,7 @@ export const renderStepAction = (action) => {
     <div className="step-action">
       <span className="step-tool">{tool}</span>
       {rawTool !== "finish" && (
-        <span className="step-chip">{query}</span>
+        <span className="step-chip">{tool === 'Summary' ? (query || 'All') : query}</span>
       )}
     </div>
   );

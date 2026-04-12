@@ -3,18 +3,15 @@ import "./globals.css";
 import { SessionProvider, useSession } from "../context/SessionContext";
 import Sidebar from "../components/Sidebar";
 import ChatPanel from "../components/ChatPanel";
-import DocumentHub from "../components/DocumentHub";
-import ChapterSummaries from "../components/ChapterSummaries";
 import IngestionPanel from "../components/IngestionPanel";
+import AnalyticsDashboard from "../components/AnalyticsDashboard";
 
 function AppLayout() {
-  const { currentSummaries, ingestionProgress, isPanelExpanded } = useSession();
+  const { ingestionProgress, isPanelExpanded, showAnalytics, setShowAnalytics } = useSession();
 
-  const isIngesting = ingestionProgress &&
-    ingestionProgress.phase !== "complete" &&
-    ingestionProgress.phase !== "failed";
-
-  const showSummaries = currentSummaries && currentSummaries.length > 0 && !isIngesting;
+  if (showAnalytics) {
+    return <AnalyticsDashboard onClose={() => setShowAnalytics(false)} />;
+  }
 
   return (
     <div className="dashboard-layout">

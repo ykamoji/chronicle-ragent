@@ -153,5 +153,28 @@ class AgentMemory:
         logging.getLogger(__name__).info(f"Cleanup: session {session_id} - removed {result.deleted_count} messages. New total: {cut_index}.")
         return result.deleted_count
 
+    def log_query_analytics(self, session_id: str, query: str, metrics: list):
+        """Flushes a list of tool metrics to MongoDB analytics collection."""
+        if not metrics:
+            return
+            
+        col = mongo.get_analytics_collection()
+        if col is None:
+            return
+            
+        timestamp = datetime.now().isoformat()
+        docs_to_insert = []
+        for m in metrics:
+            doc = {
+                "session_id": session_id,
+                "query": query,
+                "timestamp": timestamp,
+                **m
+            }
+            docs_to_insert.append(doc)
+            
+        if docs_to_insert:
+            col.insert_many(docs_to_insert)
+
 # Global memory instance
 memory = AgentMemory()

@@ -24,6 +24,7 @@ export function SessionProvider({ children }) {
   const [activeIngestionTab, setActiveIngestionTab] = useState("documents");
   const [highlightChapter, setHighlightChapter] = useState(null);
   const [sessionList, setSessionList] = useState([]);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   const fetchSessions = useCallback(async () => {
     try {
@@ -168,6 +169,8 @@ export function SessionProvider({ children }) {
         sessionList,
         setSessionList,
         fetchSessions,
+        showAnalytics,
+        setShowAnalytics,
       }}
     >
       {children}

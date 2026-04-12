@@ -7,16 +7,18 @@ const API_URL = "";
 
 export default function DocumentHub() {
   const [uploadStatus, setUploadStatus] = useState("");
+  const [sessionData, setSessionData] = useState(null);
   const { sessionId, setSessionId, loadSession, ingestionProgress, setIngestionProgress, setActiveIngestionTab } = useSession();
 
-  // Resume tracking if session already exists and is ingesting
+  // Resume tracking if session already exists and is ingesting, and fetch session data
   useEffect(() => {
     if (sessionId) {
-      const fetchSessionProgress = async () => {
+      const fetchSessionData = async () => {
         try {
           const res = await fetch(`${API_URL}/sessions/${sessionId}`);
           if (res.ok) {
             const data = await res.json();
+            setSessionData(data);
             if (data.ingestion_progress &&
               data.ingestion_progress.phase !== "complete" &&
               data.ingestion_progress.phase !== "failed") {
@@ -25,11 +27,11 @@ export default function DocumentHub() {
             }
           }
         } catch (err) {
-          console.error("Failed to fetch session progress:", err);
+          console.error("Failed to fetch session data:", err);
         }
       };
 
-      fetchSessionProgress();
+      fetchSessionData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
@@ -43,6 +45,7 @@ export default function DocumentHub() {
 
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("filename", file.name);
     if (sessionId) {
       formData.append("session_id", sessionId);
     }
@@ -136,6 +139,21 @@ export default function DocumentHub() {
     );
   };
 
+  const formatDate = (isoDate) => {
+    if (!isoDate) return "—";
+    try {
+      return new Date(isoDate).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    } catch {
+      return "—";
+    }
+  };
+
   return (
     <>
       <h2>Document Hub</h2>
@@ -143,28 +161,68 @@ export default function DocumentHub() {
         Upload PDF or text files to build the agent&apos;s knowledge base.
       </p>
 
-      {!ingestionProgress || ingestionProgress.phase === "complete" || ingestionProgress.phase === "failed" ? (
-        <div
-          className="file-drop-zone"
-          onClick={() => document.getElementById("file-upload").click()}
-        >
-          <input
-            type="file"
-            id="file-upload"
-            style={{ display: "none" }}
-            accept=".pdf,.txt"
-            onChange={handleFileUpload}
-          />
-          <p>📄 Click to Upload Document</p>
-          <span style={{ fontSize: "0.8rem" }}>Supports: PDF, TXT</span>
-        </div>
-      ) : (
-        <div className="ingestion-stepper">
-          <div className="stepper-rail"></div>
-          {renderProgressBar("extraction", "Stage 1: Metadata Extraction")}
-          {renderProgressBar("embedding", "Stage 2: Embedding Generation")}
+      {/* Current Document Display */}
+      {sessionId && sessionData?.metadata && (
+        <div style={{
+          padding: "12px 16px",
+          background: "rgba(0, 0, 0, 0.02)",
+          border: "1px solid var(--panel-glass-border, rgba(0, 0, 0, 0.08))",
+          borderRadius: "8px",
+          marginBottom: "16px",
+          display: "flex",
+          alignItems: "center",
+          gap: "12px"
+        }}>
+          <span style={{ fontSize: "20px" }}>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+            >
+              <path
+                d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"
+                fill="#e53935"
+              />
+              <path d="M14 2v6h6" fill="#ef5350" />
+              <text x="6.5" y="17" fontSize="6" fontFamily="Arial, sans-serif" fill="white">PDF</text>
+            </svg>
+          </span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: "13px", fontWeight: "500", color: "var(--text-primary)" }}>
+              {sessionData.source_filename || sessionData.chat_name || `Session ${sessionId.slice(0, 8)}`}
+            </div>
+            <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "2px" }}>
+              Uploaded: {formatDate(sessionData.upload_time)}
+            </div>
+          </div>
         </div>
       )}
+
+      {!sessionData?.metadata && <>
+        {!ingestionProgress || ingestionProgress.phase === "complete" || ingestionProgress.phase === "failed" ? (
+          <div
+            className="file-drop-zone"
+            onClick={() => document.getElementById("file-upload").click()}
+          >
+            <input
+              type="file"
+              id="file-upload"
+              style={{ display: "none" }}
+              accept=".pdf,.txt"
+              onChange={handleFileUpload}
+            />
+            <p>📄 Click to Upload Document</p>
+            <span style={{ fontSize: "0.8rem" }}>Supports: PDF, TXT</span>
+          </div>
+        ) : (
+          <div className="ingestion-stepper">
+            <div className="stepper-rail"></div>
+            {renderProgressBar("extraction", "Stage 1: Metadata Extraction")}
+            {renderProgressBar("embedding", "Stage 2: Embedding Generation")}
+          </div>
+        )}</>
+      }
 
       {uploadStatus && !ingestionProgress && (
         <div style={{ padding: "12px", background: "var(--sys-msg-bg)", borderRadius: "8px", fontSize: "0.9rem", marginTop: "16px" }}>

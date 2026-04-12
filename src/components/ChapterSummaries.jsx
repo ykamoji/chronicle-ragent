@@ -57,6 +57,29 @@ export default function ChapterSummaries({ currentSummaries }) {
                 <p style={{ marginTop: '8px', color: 'var(--text-secondary)' }}>
                   {item.summary}
                 </p>
+                {item.characters && item.characters.length > 0 && (
+                  <div className="characters-badges" style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {item.characters.map((character, charIdx) => (
+                      <span
+                        key={charIdx}
+                        className="character-badge"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          padding: '4px 10px',
+                          backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: '500',
+                          color: 'var(--text-primary)',
+                          border: '1px solid rgba(0, 0, 0, 0.12)',
+                        }}
+                      >
+                        {character}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </details>
           );

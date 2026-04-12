@@ -189,11 +189,6 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
                 memory.add_message(session_id, "Agent", tool_arg, is_hidden=False, model_name=model_name, total_time=total_time)
 
-                # Generate a chat name from the final response (non-blocking)
-                import threading
-                t = threading.Thread(target=memory.set_chat_name, args=(session_id, tool_arg), daemon=True)
-                t.start()
-
                 yield json.dumps({
                     "type": "answer",
                     "content": tool_arg,
@@ -202,6 +197,16 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                     "total_time": round(total_time, 2),
                     "time": datetime.now().isoformat()
                 })
+
+                # Generate a chat name from the final response (in-stream)
+                new_chat_name = memory.set_chat_name(session_id, tool_arg)
+                if new_chat_name:
+                    yield json.dumps({
+                        "type": "chat_name",
+                        "chat_name": new_chat_name,
+                        "session_id": session_id,
+                        "time": datetime.now().isoformat()
+                    })
                 return
 
             # Yield tool call event

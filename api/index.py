@@ -210,7 +210,8 @@ def process_file_background(text_content: str, session_id: str):
                         {"$push": 
                             {"metadata": {
                                 "chapter": metadata.get("chapter", "Unknown"), 
-                                "summary": chapter_summary
+                                "summary": chapter_summary,
+                                "characters": metadata.get("characters", [])
                                 }
                             }
                         })
@@ -228,7 +229,8 @@ def process_file_background(text_content: str, session_id: str):
                     {"$push": 
                         {"metadata": {
                             "chapter": metadata.get("chapter", "Unknown"), 
-                            "summary": chapter_summary
+                            "summary": chapter_summary,
+                            "characters": metadata.get("characters", [])
                             }
                         }
                     })
@@ -240,8 +242,7 @@ def process_file_background(text_content: str, session_id: str):
                         "text": sub_chunk,
                         "embedding": None,
                         "chapter": metadata.get("chapter", "Unknown"),
-                        "characters": metadata.get("characters", []),
-                        "parent_chapter_index": i,
+                        "parent_chapter_index": j,
                         "chapter_hash": c_hash,
                         "session_id": [session_id]
                     }
@@ -373,7 +374,7 @@ def cache_session_docs_background(session_id: str):
              
         cursor = vector_col.find(
             {"session_id": {"$in": [session_id]}},
-            {"embedding": 1, "text": 1, "chapter": 1, "characters": 1, "_id": 0}
+            {"embedding": 1, "text": 1, "chapter": 1, "_id": 0}
         )
         docs = list(cursor)
         session_cache.set_vector_docs(session_id, docs)
@@ -391,9 +392,9 @@ def get_vectors(session_id):
             return jsonify({"error": "DB not connected"}), 503
         docs = list(vector_col.find(
             {"session_id": {"$in": [session_id]}},
-            {"text": 1, "chapter": 1, "_id": 0}
+            {"text": 1, "chapter": 1, "parent_chapter_index": 1, "_id": 0}
         ))
-    cleaned = [{"text": d.get("text", ""), "chapter": d.get("chapter", "")} for d in docs]
+    cleaned = [{"text": d.get("text", ""), "chapter": d.get("chapter", ""), "parent_chapter_index": d.get("parent_chapter_index", 0)} for d in docs]
     return jsonify(cleaned)
 
 

@@ -113,7 +113,7 @@ export default function ChatPanel() {
       const matchedDoc = vectors.find(doc => doc.text.trim().toLowerCase().startsWith(snippet));
 
       if (matchedDoc) {
-        setReferenceText(`[Source: ${matchedDoc.chapter}]\n\n${matchedDoc.text}`);
+        setReferenceText(`[Source: ${matchedDoc.chapter} #${matchedDoc.parent_chapter_index + 1}]\n\n${matchedDoc.text}`);
         setActiveIngestionTab("reference");
         setIsPanelExpanded(true);
       } else {

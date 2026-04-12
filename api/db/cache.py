@@ -8,7 +8,6 @@ class SessionCache:
     """Simple in-memory cache for session-specific document and metadata results."""
     def __init__(self):
         self._vector_docs = {}     # session_id -> list of docs
-        self._vector_embeddings = {} # session_id -> array of embeddings
         self._metadata = {}        # session_id -> list of metadata objects
         self._lock = threading.Lock()
 
@@ -16,14 +15,9 @@ class SessionCache:
         with self._lock:
             return self._vector_docs.get(session_id)
 
-    def get_vector_embeddings(self, session_id: str):
-        with self._lock:
-            return self._vector_embeddings.get(session_id)
-
     def set_vector_docs(self, session_id: str, docs: list):
         with self._lock:
             logger.info(f"Caching {len(docs)} documents for session: {session_id}")
-            self._vector_embeddings[session_id] = np.ascontiguousarray([doc["embedding"] for doc in docs], dtype=np.float32)
             for i, doc in enumerate(docs):
                 doc["_index"] = i
                 if "embedding" in doc:

@@ -1,4 +1,4 @@
-from api.retrieval.vector_search import perform_vector_search, extract_query_signals
+from api.retrieval.vector_search import perform_vector_search
 from api.retrieval.keyword_search import perform_keyword_search
 from api.retrieval.character_search import perform_character_search
 from api.db.mongo import mongo
@@ -11,10 +11,7 @@ def tool_vector_search(query: str, session_id: str) -> str:
     """Semantically searches the document text based on meaning."""
     logger.info(f"Running vector search for: {query} (Session: {session_id})")
     try:
-        # Extract signals from query
-        signals = extract_query_signals(query)
-        logger.info(f"Extracted signals: {signals}")
-        results = perform_vector_search(query=query, session_id=session_id, limit=7, **signals)
+        results = perform_vector_search(query, session_id, limit=7)
         if not results:
             return "No matching documents found in vector search."
         rendered = []

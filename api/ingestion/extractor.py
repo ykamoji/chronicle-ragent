@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from google import genai
 from google.genai import types
 from api.config.settings import app_settings
@@ -11,15 +12,36 @@ def extract_metadata(chunk_text: str) -> dict:
         raise ValueError("GEMINI_API_KEY is not set.")
     
     prompt = f"""
-    Given the following text segment, perform three tasks:
-    1. Write a 7-10 sentence summary.
-    2. Identify the likely chapter name or number. If none is found, return "Unknown".
-    3. Make a list of character names mentioned in this segment.
-    
-    Return the result EXACTLY as a JSON object with the keys "summary", "chapter", and "characters".
-    Do not wrap the JSON in Markdown code blocks (e.g. ```json). Just return the raw JSON object.
+    You are given a full book chapter.
 
-    Text Segment:
+    Your task is to extract structured metadata from it.
+
+    Tasks:
+    1. Write a detailed plot summary that captures all major events across the entire chapter.
+    2. Identify the chapter name or number ONLY if it is explicitly present in the text. Otherwise return "Unknown".
+    3. Extract ALL explicitly mentioned character names.
+
+    SUMMARY REQUIREMENTS:
+    - The summary MUST be between 12 and 20 sentences.
+    - It must cover the full progression of the chapter (beginning → middle → end).
+    - Do not overly compress—include key events, conflicts, and transitions.
+    - Do not add information not present in the text.
+    
+    CHARACTER EXTRACTION RULES:
+    - Include ONLY explicitly mentioned proper names.
+    - Exclude roles or descriptions (e.g., "the man", "her mother", "the guard").
+    - Include both major and minor characters.
+    - Pay special attention to names that appear only once.
+    - Deduplicate names (each name appears only once).
+    - Preserve original casing.
+
+    GENERAL RULES:
+    - Do NOT hallucinate or infer missing details.
+    - Do NOT include explanations or extra text.
+    - Output MUST be valid JSON only.
+    - Use EXACTLY these keys: "summary", "chapter", "characters".
+
+    Chapter:
     {chunk_text}
     """
 
@@ -48,13 +70,28 @@ def extract_metadata(chunk_text: str) -> dict:
     
     try:
         # Since we asked for JSON response_mime_type, it should be highly reliable
-        raw_text = response.text.strip()
-        result = json.loads(raw_text)
+        if hasattr(response, "parsed") and response.parsed:
+            return response.parsed
+        
+        result = safe_json_extract(response.text)
         return result
-    except json.JSONDecodeError:
-        print("Failed to decode JSON from Gemini. Falling back.")
+    except Exception as e:
+        print(f"Failed to extract metadata {e}")
         return {
-            "summary": "Extraction failed.",
+            "summary": "",
             "chapter": "Unknown",
             "characters": []
         }
+
+def safe_json_extract(text: str) -> dict:
+    try:
+        # Extract first JSON object using regex
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if not match:
+            raise ValueError("No JSON object found")
+
+        json_str = match.group(0)
+        return json.loads(json_str)
+
+    except Exception as e:
+        return {"characters": [], "summary": "", "chapter": "Unknown"}

@@ -41,7 +41,6 @@ def health_check():
             sess = mongo.get_sessions_collection()
             details["DB"] = mongo.db.name
             details[sess.name] = {
-                "sample": list(sess.find({}, {"_id": 0}).limit(2)),
                 "count": sess.count_documents({})
             }
             vec = mongo.get_vector_collection()

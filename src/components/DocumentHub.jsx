@@ -1,9 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useSession } from "../context/SessionContext";
+import {API_URL} from "../api.ts"
 import "./DocumentHub.css";
-
-const API_URL = "";
 
 export default function DocumentHub() {
   const [uploadStatus, setUploadStatus] = useState("");

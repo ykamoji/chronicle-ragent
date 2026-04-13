@@ -3,9 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { useSession } from "../context/SessionContext";
 import ConfirmDialog from "./ConfirmDialog";
 import SettingsPanel from "./SettingsPanel";
+import {API_URL} from "../api.ts";
 import "./Sidebar.css";
-
-const API_URL = "";
 
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);

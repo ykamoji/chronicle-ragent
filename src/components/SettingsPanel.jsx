@@ -1,9 +1,8 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "../context/SessionContext";
+import {API_URL} from "../api.ts";
 import "./SettingsPanel.css";
-
-const API_URL = "";
 
 export default function SettingsPanel({ isCollapsed }) {
   const { setShowAnalytics } = useSession();

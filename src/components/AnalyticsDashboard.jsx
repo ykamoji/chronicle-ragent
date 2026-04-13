@@ -5,8 +5,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
 import "./AnalyticsDashboard.css";
-
-const API_URL = "";
+import {API_URL} from "../api.ts";
 
 const TOOL_COLORS = {
   vector_search: "#1f77b4",

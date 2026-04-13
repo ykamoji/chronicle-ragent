@@ -2,7 +2,7 @@ services:
   # Backend: Flask Service
   - type: web
     plan: free
-    name: chronicle-backend
+    name: chronicle-mcp
     runtime: python
     # Root directory is the repo root since requirements.txt is there
     rootDir: .
@@ -21,7 +21,7 @@ services:
   # Frontend: Next.js Service
   - type: web
     plan: free
-    name: chronicle-frontend
+    name: chronicle
     runtime: node
     # Root directory is the repo root since package.json is there
     rootDir: .
@@ -31,4 +31,7 @@ services:
       - key: NODE_VERSION
         value: 20.x
       - key: NEXT_PUBLIC_API_URL
-        value: https://chronicle-backend.onrender.com
+        fromService:
+          name: chronicle-mcp
+          type: web
+          property: host

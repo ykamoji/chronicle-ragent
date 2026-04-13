@@ -33,8 +33,37 @@ CORS(app)
 
 @app.route("/health", methods=["GET"])
 def health_check():
-    return jsonify({"status": "healthy", "mongo_connected": mongo.client is not None})
 
+    try:
+        details = {}
+        mongo.client.admin.command("ping")
+        if mongo.client:
+            sess = mongo.get_sessions_collection()
+            details["DB"] = mongo.db.name
+            details[sess.name] = {
+                "sample": list(sess.find({}, {"_id": 0}).limit(2)),
+                "count": sess.count_documents({})
+            }
+            vec = mongo.get_vector_collection()
+            details[vec.name] = {
+                "count": vec.count_documents({})
+            }
+            msg = mongo.get_messages_collection()
+            details[msg.name] = {
+                "count": msg.count_documents({})
+            }
+            ana = mongo.get_analytics_collection()
+            details[ana.name] = {
+                "count": ana.count_documents({})
+            
+            }        
+            return jsonify({"status": "healthy", "details":details, "mongo_connected": True})
+
+    except Exception as e:
+        logger.error(f"Failed to connect to MongoDB: {e}")
+        return jsonify({"status": "unhealthy", "details":details, "mongo_connected": False})
+
+        
 
 @app.route("/settings", methods=["GET", "PUT"])
 def handle_settings():

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class MongoDBClient:
     def __init__(self):
         mongo_uri = os.getenv("MONGO_URI")
-        mongo_db_name = os.getenv("MONGO_DB_NAME", "chronicle")
+        mongo_db_name = os.getenv("MONGO_DB_NAME", "chronicle_rag")
 
         if not mongo_uri:
             logger.warning("MONGO_URI is not set. MongoDB will not connect.")

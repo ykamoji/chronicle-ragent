@@ -45,10 +45,11 @@ config = types.GenerateContentConfig(
     top_p=0.95,
     stop_sequences=["Observation:"],
     max_output_tokens=4096,
-    thinking_config=types.ThinkingConfig(
-        include_thoughts=True,
-        thinking_level="HIGH"
-    )
+)
+
+thinking_config = types.ThinkingConfig(
+    include_thoughts=True,
+    thinking_level="HIGH"
 )
 
 def extract_action(text: str):
@@ -86,7 +87,9 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
     client = genai.Client(api_key=api_key)
 
-    SYSTEM_PROMPT_WITH_THINK = f"<|think|>\n{SYSTEM_PROMPT}"
+    if app_settings.get_thinking():
+        config.thinking_config = thinking_config
+    
     start_time = time.time()
     query_analytics = []
 
@@ -94,7 +97,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
         # Initialize conversation
         history_objs = memory.get_history(session_id)
         if not history_objs:
-            prompt = f"{SYSTEM_PROMPT_WITH_THINK}\n\nUser Question: {query}\n"
+            prompt = f"{SYSTEM_PROMPT}\n\nUser Question: {query}\n"
         else:
             history_str = ""
             for msg in history_objs:
@@ -104,7 +107,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                 role = msg["role"].capitalize()
                 content = msg["content"]
                 history_str += f"{role}: {content}\n"
-            prompt = f"{SYSTEM_PROMPT_WITH_THINK}\n\n{history_str}User Question: {query}\n"
+            prompt = f"{SYSTEM_PROMPT}\n\n{history_str}User Question: {query}\n"
 
         memory.add_message(session_id, "User", query)
         current_prompt = prompt
@@ -120,19 +123,22 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                 # EXTRACT NATIVE THOUGHTS AND ACTION TEXT
                 thought_text = ""
                 response_text = ""
-                
-                for part in response.candidates[0].content.parts:
-                    if part.thought:
-                        thought_text += part.text
-                        if thought_text:
-                            yield json.dumps({
-                                "type": "thought",
-                                "content": thought_text,
-                                "action": None,
-                                "time": datetime.now().isoformat()
-                            })
-                    else:
-                        response_text += part.text
+
+                if app_settings.get_thinking():
+                    for part in response.candidates[0].content.parts:
+                        if part.thought:
+                            thought_text += part.text
+                            if thought_text:
+                                yield json.dumps({
+                                    "type": "thought",
+                                    "content": thought_text,
+                                    "action": None,
+                                    "time": datetime.now().isoformat()
+                                })
+                        else:
+                            response_text += part.text
+                else:
+                    response_text = response.text.strip()
 
                 if not response_text.startswith("Thought:"):
                     response_text = "Thought: " + response_text
@@ -155,19 +161,21 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
             tool_name, tool_arg = extract_action(llm_text)
 
-            tool_arg = tool_arg.strip('"')
+            if tool_arg:
+                tool_arg = tool_arg.strip('"')
 
             if tool_name == 'summary' and (tool_arg is None or tool_arg.strip() == ''):
                 tool_arg = 'all'
 
+            # logger.info(f"thought_text = {thought_text}")
+
             # Yield thought event
-            if thought_text:
-                yield json.dumps({
-                    "type": "thought",
-                    "content": thought_text if thought_text else "Analyzing...",
-                    "action": f"{tool_name}[{tool_arg}]" if tool_name else None,
-                    "time": datetime.now().isoformat()
-                })
+            yield json.dumps({
+                "type": "thought",
+                "content": thought_text if thought_text else "Thinking...",
+                "action": f"{tool_name}[{tool_arg}]" if tool_name else None,
+                "time": datetime.now().isoformat()
+            })
 
             # Save the message without Action: finish[...] to avoid redundancy in history
             save_text = re.sub(r"Action:\s*finish\[.*?\]", "", llm_text, flags=re.IGNORECASE | re.DOTALL).strip()
@@ -217,6 +225,8 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                 memory.log_query_analytics(session_id, query, query_analytics)
                 return
 
+            # logger.info(f"tool {tool_name} args {tool_arg}")
+            
             # Yield tool call event
             yield json.dumps({"type": "tool", "tool": tool_name, "args": tool_arg, "time": datetime.now().isoformat()})
 

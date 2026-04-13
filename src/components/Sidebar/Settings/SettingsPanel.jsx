@@ -1,18 +1,18 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { useSession } from "../context/SessionContext";
+import { useRouter } from "next/navigation";
 import "./SettingsPanel.css";
-
-const API_URL = "";
+import { API_URL } from "../../../api";
 
 export default function SettingsPanel({ isCollapsed }) {
-  const { setShowAnalytics } = useSession();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState(null);
   const [delayValue, setDelayValue] = useState("");
   const panelRef = useRef(null);
 
   // ── Fetch settings on mount ──
+
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -81,7 +81,7 @@ export default function SettingsPanel({ isCollapsed }) {
       {/* ── Sidebar footer (always visible) ── */}
       <div className={`settings-footer${isCollapsed ? " collapsed" : ""}`}>
         {activeModel && (
-          <div className="settings-model-chip">
+          <div className="settings-model-chip" onClick={() => setOpen(true)}>
             <span className="model-dot" />
             <span className="model-name">{activeModel.name}</span>
           </div>
@@ -152,7 +152,7 @@ export default function SettingsPanel({ isCollapsed }) {
 
             {/* Dummy actions */}
             <div className="settings-action-list">
-              <button className="settings-action-item" onClick={() => { setShowAnalytics(true); setOpen(false); }}>
+              <button className="settings-action-item" onClick={() => { router.push('/dashboard/analytics'); setOpen(false); }}>
                 <span className="settings-action-icon" style={{ paddingTop: "4px" }}>
                   <svg
                     viewBox="0 0 24 24"

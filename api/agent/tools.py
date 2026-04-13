@@ -144,3 +144,10 @@ TOOLS = {
     "character_lookup": tool_character_lookup,
     "summary": tool_summary,
 }
+
+TOOLS_NAME_MAP = {
+    "vector_search": "Vector",
+    "keyword_search": "Keyword",
+    "character_lookup": "Character",
+    "summary": "Summary",
+}

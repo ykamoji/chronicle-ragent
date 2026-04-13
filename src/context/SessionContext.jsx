@@ -1,9 +1,8 @@
 "use client";
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
+import { API_URL } from "../api";
 
 const SessionContext = createContext(null);
-
-const API_URL = "";
 
 export function SessionProvider({ children }) {
   const [sessionId, setSessionIdState] = useState(null);
@@ -24,7 +23,6 @@ export function SessionProvider({ children }) {
   const [activeIngestionTab, setActiveIngestionTab] = useState("documents");
   const [highlightChapter, setHighlightChapter] = useState(null);
   const [sessionList, setSessionList] = useState([]);
-  const [showAnalytics, setShowAnalytics] = useState(false);
 
   const fetchSessions = useCallback(async () => {
     try {
@@ -169,8 +167,6 @@ export function SessionProvider({ children }) {
         sessionList,
         setSessionList,
         fetchSessions,
-        showAnalytics,
-        setShowAnalytics,
       }}
     >
       {children}

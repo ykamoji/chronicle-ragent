@@ -20,6 +20,7 @@
   color: var(--text-secondary);
   line-height: 1.3;
   min-width: 0;
+  cursor: pointer;
 }
 
 .settings-model-chip .model-dot {
@@ -185,11 +186,11 @@
 }
 
 .model-option:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(99, 102, 241, 0.06);
 }
 
 .model-option.active {
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(99, 102, 241, 0.08);
 }
 
 /* Radio circle */
@@ -315,7 +316,7 @@
 }
 
 .settings-action-item:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(99, 102, 241, 0.06);
   transform: none;
   box-shadow: none;
 }

@@ -24,8 +24,8 @@
 }
 
 .panel-toggle-btn:hover {
-  background: var(--text-primary);
-  color: var(--bg-dark);
+  background: var(--accent-cyan);
+  color: #ffffff;
   transform: scale(1.05);
 }
 
@@ -52,14 +52,14 @@
 }
 
 .tab-item:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(99, 102, 241, 0.06);
   transform: none;
   box-shadow: none;
 }
 
 .tab-item.active {
-  background: var(--text-primary);
-  color: var(--bg-dark);
+  background: var(--accent-cyan);
+  color: #ffffff;
 }
 
 .tab-item:disabled {

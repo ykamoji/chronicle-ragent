@@ -1,9 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useSession } from "../context/SessionContext";
+import { useSession } from "../../../context/SessionContext";
 import "./DocumentHub.css";
-
-const API_URL = "";
+import { API_URL } from "../../../api";
 
 export default function DocumentHub() {
   const [uploadStatus, setUploadStatus] = useState("");
@@ -33,7 +32,11 @@ export default function DocumentHub() {
 
       fetchSessionData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    if (sessionId === null && sessionData) {
+      setSessionData(null)
+    }
+
   }, [sessionId]);
 
   const handleFileUpload = async (e) => {
@@ -72,10 +75,44 @@ export default function DocumentHub() {
     }
   };
 
+  const handleSampleUpload = async () => {
+    const response = await fetch("/mini_arc.pdf");
+    const blob = await response.blob();
+
+    console.log(blob)
+
+    const file = new File([blob], "mini_arc.pdf", {
+      type: "application/pdf",
+    });
+
+    const fakeEvent = {
+      target: {
+        files: [file],
+      },
+    };
+
+    handleFileUpload(fakeEvent);
+  };
+
+  const handleDownload = async () => {
+    const response = await fetch("/mini_arc.pdf");
+    const blob = await response.blob();
+
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "mini_arc.pdf";
+    document.body.appendChild(a);
+    a.click();
+
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
   const startProgressStream = (id) => {
     // Direct link to Flask for SSE (bypassing Next.js proxy if needed)
-    // Note: STREAM_URL is already defined in ChatPanel, but I'll use relative or absolute here
-    const sseUrl = `http://127.0.0.1:5328/ingest-progress/${id}`;
+    const sseUrl = `${API_URL}/ingest-progress/${id}`;
     const eventSource = new EventSource(sseUrl);
 
     eventSource.onmessage = (event) => {
@@ -177,8 +214,8 @@ export default function DocumentHub() {
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
-              width="24"
-              height="24"
+              width="80"
+              height="80"
             >
               <path
                 d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"
@@ -201,20 +238,54 @@ export default function DocumentHub() {
 
       {!sessionData?.metadata && <>
         {!ingestionProgress || ingestionProgress.phase === "complete" || ingestionProgress.phase === "failed" ? (
-          <div
-            className="file-drop-zone"
-            onClick={() => document.getElementById("file-upload").click()}
-          >
-            <input
-              type="file"
-              id="file-upload"
-              style={{ display: "none" }}
-              accept=".pdf,.txt"
-              onChange={handleFileUpload}
-            />
-            <p>📄 Click to Upload Document</p>
-            <span style={{ fontSize: "0.8rem" }}>Supports: PDF, TXT</span>
-          </div>
+          <>
+            <div
+              className="file-drop-zone"
+              onClick={() => document.getElementById("file-upload").click()}
+            >
+              <input
+                type="file"
+                id="file-upload"
+                style={{ display: "none" }}
+                accept=".pdf,.txt"
+                onChange={handleFileUpload}
+              />
+              <p>📄 Click to Upload Document</p>
+              <span style={{ fontSize: "0.8rem" }}>Supports: PDF, TXT</span>
+            </div>
+
+            <span style={{ textAlign: "center" }}>OR</span>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width="80"
+                height="80"
+              >
+                <path
+                  d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"
+                  fill="#e53935"
+                />
+                <path d="M14 2v6h6" fill="#ef5350" />
+                <text x="6.5" y="17" fontSize="6" fontFamily="Arial, sans-serif" fill="white">PDF</text>
+              </svg>
+              <span style={{ fontSize: "0.8rem", textAlign: "center" }}>Mini Arc.pdf</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+              <button
+                type="button"
+                style={{ width: "50%", margin: "0 auto", borderRadius: "0" }}
+                onClick={handleSampleUpload}
+              >Upload Sample Book</button>
+
+              <button
+                type="button"
+                style={{ width: "50%", margin: "0 auto", borderRadius: "0" }}
+                onClick={handleDownload}
+              >Download</button>
+            </div>
+          </>
+
         ) : (
           <div className="ingestion-stepper">
             <div className="stepper-rail"></div>
@@ -224,11 +295,13 @@ export default function DocumentHub() {
         )}</>
       }
 
-      {uploadStatus && !ingestionProgress && (
-        <div style={{ padding: "12px", background: "var(--sys-msg-bg)", borderRadius: "8px", fontSize: "0.9rem", marginTop: "16px" }}>
-          {uploadStatus}
-        </div>
-      )}
+      {
+        uploadStatus && !ingestionProgress && (
+          <div style={{ padding: "12px", background: "var(--sys-msg-bg)", borderRadius: "8px", fontSize: "0.9rem", marginTop: "16px" }}>
+            {uploadStatus}
+          </div>
+        )
+      }
     </>
   );
 }

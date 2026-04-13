@@ -62,6 +62,12 @@ class AppSettings:
         """Returns the delay override value, or None if not set."""
         return self._delay_override
 
+    def get_thinking(self):
+        """Return the thinking enable setting."""
+        if self._active_model:
+            return self._active_model.get("thinking", False)
+        return False
+
     # ── Setters ────────────────────────────────────────────────────────
 
     def set_model(self, model_id: str) -> bool:
@@ -71,6 +77,7 @@ class AppSettings:
             self._active_model = match
             logger.info(f"Active model changed to: {match['name']} ({model_id})")
             return True
+            
         logger.warning(f"Model id '{model_id}' not found in settings.")
         return False
 
@@ -89,7 +96,7 @@ class AppSettings:
         return {
             "modelList": self._model_list,
             "activeModel": self._active_model,
-            "delayOverride": self._delay_override,
+            "delayOverride": self._delay_override
         }
 
 

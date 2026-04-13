@@ -1,11 +1,13 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { useSession } from "../context/SessionContext";
+import { useSession } from "../../context/SessionContext";
 import ReactMarkdown from 'react-markdown';
-import { CollapsibleObservation } from "./Observation";
+import { CollapsibleObservation } from "./Observations/Observation";
 import "./ChatPanel.css";
+import { API_URL } from "../../api";
 
-const STREAM_URL = "http://127.0.0.1:5328"; // Direct to Flask for SSE streaming (bypasses Next.js proxy buffering)
+
+// Direct to Flask for SSE streaming (bypasses Next.js proxy buffering)
 
 export const renderStepAction = (action) => {
   if (!action) return null;
@@ -69,7 +71,7 @@ const formatTimeWithSeconds = (isoString) => {
 const callCleanup = async (sid) => {
   if (!sid) return;
   try {
-    await fetch(`${STREAM_URL}/query/cleanup`, {
+    await fetch(`${API_URL}/query/cleanup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ session_id: sid }),
@@ -111,8 +113,8 @@ export default function ChatPanel() {
     if (!blockText || !sessionId) return;
 
     try {
-      // Direct call to Flask (bypassing Next.js proxy if needed, similar to STREAM_URL)
-      const res = await fetch(`http://127.0.0.1:5328/vectors/${sessionId}`);
+      // Direct call to Flask (bypassing Next.js proxy if needed)
+      const res = await fetch(`${API_URL}/vectors/${sessionId}`);
       if (!res.ok) return;
       const vectors = await res.json();
 
@@ -188,7 +190,7 @@ export default function ChatPanel() {
       const payload = { query: userQuery };
       if (sessionId) payload.session_id = sessionId;
 
-      const res = await fetch(`${STREAM_URL}/query`, {
+      const res = await fetch(`${API_URL}/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

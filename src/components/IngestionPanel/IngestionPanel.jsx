@@ -1,7 +1,6 @@
-import { useEffect, useRef } from "react";
-import { useSession } from "../context/SessionContext";
-import DocumentHub from "./DocumentHub";
-import ChapterSummaries from "./ChapterSummaries";
+import { useSession } from "../../context/SessionContext";
+import DocumentHub from "./DocumentHub/DocumentHub";
+import ChapterSummaries from "./ChapterSummaries/ChapterSummaries";
 import "./IngestionPanel.css";
 
 export default function IngestionPanel() {

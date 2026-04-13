@@ -1,22 +1,22 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
 
 :root {
-  /* Premium Light Monochrome Palette */
+  /* Modern Indigo/Violet Palette */
   --bg-dark: #ffffff;
-  --bg-gradient-start: #f8f8f8;
+  --bg-gradient-start: #f5f3ff;
   --bg-gradient-end: #ffffff;
 
   --panel-glass-bg: rgba(255, 255, 255, 0.8);
-  --panel-glass-border: rgba(0, 0, 0, 0.1);
+  --panel-glass-border: rgba(99, 102, 241, 0.15);
 
-  --accent-cyan: #000000;
-  --accent-blue: #666666;
-  --text-primary: #000000;
-  --text-secondary: #555555;
+  --accent-cyan: #6366f1;
+  --accent-blue: #8b5cf6;
+  --text-primary: #1e1b4b;
+  --text-secondary: #64748b;
 
-  --user-msg-bg: rgba(0, 0, 0, 0.05);
-  --agent-msg-bg: rgba(0, 0, 0, 0.02);
-  --sys-msg-bg: rgba(0, 0, 0, 0.04);
+  --user-msg-bg: rgba(99, 102, 241, 0.06);
+  --agent-msg-bg: rgba(139, 92, 246, 0.04);
+  --sys-msg-bg: rgba(99, 102, 241, 0.05);
 }
 
 * {
@@ -66,7 +66,7 @@ button {
 button {
   cursor: pointer;
   border: none;
-  background: linear-gradient(90deg, #000000, #222222);
+  background: linear-gradient(90deg, #6366f1, #8b5cf6);
   color: #ffffff;
   padding: 10px 24px;
   border-radius: 8px;
@@ -76,7 +76,7 @@ button {
 
 button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
 }
 
 button:active {
@@ -105,12 +105,12 @@ button:active {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cccccc;
+  background: rgba(99, 102, 241, 0.25);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #aaaaaa;
+  background: rgba(99, 102, 241, 0.45);
 }
 
 /* Animations */
@@ -130,7 +130,7 @@ button:active {
   display: inline-block;
   width: 20px;
   height: 20px;
-  border: 3px solid rgba(0, 0, 0, 0.1);
+  border: 3px solid rgba(99, 102, 241, 0.15);
   border-radius: 50%;
   border-top-color: var(--accent-cyan);
   animation: spin 1s ease-in-out infinite;

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useSession } from "../context/SessionContext";
-import {API_URL} from "../api.ts"
+import { API_URL } from "../api.ts"
 import "./DocumentHub.css";
 
 export default function DocumentHub() {
@@ -73,8 +73,7 @@ export default function DocumentHub() {
 
   const startProgressStream = (id) => {
     // Direct link to Flask for SSE (bypassing Next.js proxy if needed)
-    // Note: STREAM_URL is already defined in ChatPanel, but I'll use relative or absolute here
-    const sseUrl = `http://127.0.0.1:5328/ingest-progress/${id}`;
+    const sseUrl = `${API_URL}/ingest-progress/${id}`;
     const eventSource = new EventSource(sseUrl);
 
     eventSource.onmessage = (event) => {

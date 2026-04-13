@@ -243,7 +243,7 @@ def process_file_background(text_content: str, session_id: str):
                                 }
                             }
                         })
-                    time.sleep(10)
+                    time.sleep(app_settings.get_delay())
                     
                 # We don't skip entirely; we still want to check if embeddings are needed in Phase 2
                 continue
@@ -276,7 +276,7 @@ def process_file_background(text_content: str, session_id: str):
                     }
                     vector_col.insert_one(doc)
                 
-                time.sleep(10)
+                time.sleep(app_settings.get_delay())
             except Exception as e:
                 logger.error(f"Failed processing chapter {i}: {e}")
 
@@ -307,12 +307,12 @@ def process_file_background(text_content: str, session_id: str):
                         break
                     except Exception as e:
                         logger.warning(f"Embedding failed (Attempt {attempt+1}/3) for doc {doc_id}: {e}")
-                        time.sleep(2)
+                        time.sleep(5)
                 
                 if not success:
                     logger.error(f"Failed to generate embedding for doc {doc_id} after 3 attempts.")
                 
-                time.sleep(10) # Reduced for better demo
+                time.sleep(5) # Reduced for better demo
             
         # Finalize progress
         sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.phase": "complete"}})

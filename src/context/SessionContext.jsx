@@ -1,9 +1,8 @@
 "use client";
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
+import { API_URL } from "../api";
 
 const SessionContext = createContext(null);
-
-const API_URL = "";
 
 export function SessionProvider({ children }) {
   const [sessionId, setSessionIdState] = useState(null);

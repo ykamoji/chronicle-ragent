@@ -5,8 +5,7 @@ import { useSession } from "../../context/SessionContext";
 import ConfirmDialog from "../Helpers/ConfirmDialog";
 import SettingsPanel from "./Settings/SettingsPanel";
 import "./Sidebar.css";
-
-const API_URL = "";
+import { API_URL } from "../../api";
 
 export default function Sidebar() {
   const router = useRouter();

@@ -244,7 +244,7 @@ def process_file_background(text_content: str, session_id: str):
                                 }
                             }
                         })
-                    time.sleep(10)
+                    time.sleep(app_settings.get_delay())
                     
                 # We don't skip entirely; we still want to check if embeddings are needed in Phase 2
                 continue
@@ -277,7 +277,7 @@ def process_file_background(text_content: str, session_id: str):
                     }
                     vector_col.insert_one(doc)
                 
-                time.sleep(10)
+                time.sleep(app_settings.get_delay())
             except Exception as e:
                 logger.error(f"Failed processing chapter {i}: {e}")
 
@@ -602,4 +602,4 @@ def handle_session(session_id):
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8000, debug=True)
+    app.run(host="127.0.0.1", port=5000, debug=True)

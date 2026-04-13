@@ -2,8 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import "./SettingsPanel.css";
-
-const API_URL = "";
+import { API_URL } from "../../../api";
 
 export default function SettingsPanel({ isCollapsed }) {
   const router = useRouter();
@@ -13,6 +12,7 @@ export default function SettingsPanel({ isCollapsed }) {
   const panelRef = useRef(null);
 
   // ── Fetch settings on mount ──
+
   useEffect(() => {
     fetchSettings();
   }, []);

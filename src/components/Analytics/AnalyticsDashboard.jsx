@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import "./AnalyticsDashboard.css";
 
-const API_URL = "";
+import { API_URL } from "../../api";
 
 const TOOL_COLORS = {
   Vector: "#6366f1",

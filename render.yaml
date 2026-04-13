@@ -21,7 +21,7 @@ services:
   # Frontend: Next.js Service
   - type: web
     plan: free
-    name: chronicle
+    name: chronicle-ragent
     runtime: node
     # Root directory is the repo root since package.json is there
     rootDir: .

@@ -14,7 +14,7 @@ services:
       - key: MONGO_URI
         sync: false
       - key: MONGO_DB_NAME
-        value: chronicle_rag
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
 

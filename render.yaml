@@ -1,0 +1,37 @@
+services:
+  # Backend: Flask Service
+  - type: web
+    plan: free
+    name: chronicle-mcp
+    runtime: python
+    # Root directory is the repo root since requirements.txt is there
+    rootDir: .
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn api.index:app --timeout 300 --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: MONGO_URI
+        sync: false
+      - key: MONGO_DB_NAME
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+
+  # Frontend: Next.js Service
+  - type: web
+    plan: free
+    name: chronicle-ragent
+    runtime: node
+    # Root directory is the repo root since package.json is there
+    rootDir: .
+    buildCommand: npm install -g pnpm && pnpm install && pnpm run build
+    startCommand: pnpm run start
+    envVars:
+      - key: NODE_VERSION
+        value: 20.x
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          name: chronicle-mcp
+          type: web
+          property: host

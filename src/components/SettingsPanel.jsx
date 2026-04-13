@@ -1,12 +1,12 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { useSession } from "../context/SessionContext";
+import { useRouter } from "next/navigation";
 import "./SettingsPanel.css";
 
 const API_URL = "";
 
 export default function SettingsPanel({ isCollapsed }) {
-  const { setShowAnalytics } = useSession();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState(null);
   const [delayValue, setDelayValue] = useState("");
@@ -152,7 +152,7 @@ export default function SettingsPanel({ isCollapsed }) {
 
             {/* Dummy actions */}
             <div className="settings-action-list">
-              <button className="settings-action-item" onClick={() => { setShowAnalytics(true); setOpen(false); }}>
+              <button className="settings-action-item" onClick={() => { router.push('/dashboard/analytics'); setOpen(false); }}>
                 <span className="settings-action-icon" style={{ paddingTop: "4px" }}>
                   <svg
                     viewBox="0 0 24 24"

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -9,38 +10,40 @@ import "./AnalyticsDashboard.css";
 const API_URL = "";
 
 const TOOL_COLORS = {
-  vector_search: "#1f77b4",
-  keyword_search: "#ff7f0e",
-  character_lookup: "#2ca02c",
-  summary: "#d62728",
-  default: "#9467bd"
+  vector_search: "#6366f1",
+  keyword_search: "#8b5cf6",
+  character_lookup: "#06b6d4",
+  summary: "#10b981",
+  default: "#f59e0b"
 };
 
 const getToolColor = (toolName) => TOOL_COLORS[toolName] || TOOL_COLORS.default;
 
-export default function AnalyticsDashboard({ onClose }) {
+export default function AnalyticsDashboard() {
+  const router = useRouter();
   const [analytics, setAnalytics] = useState(null);
   const [messagesAnalytics, setMessagesAnalytics] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [sessionFilter, setSessionFilter] = useState("all");
   const [toolFilters, setToolFilters] = useState([]);
   const [modelFilters, setModelFilters] = useState([]);
   const [timeRange, setTimeRange] = useState("all");
   const [customFromDate, setCustomFromDate] = useState("");
   const [customToDate, setCustomToDate] = useState("");
+  const [collapsedSections, setCollapsedSections] = useState({
+    agentPerformance: false,
+    toolMetrics: false,
+    trends: false
+  });
 
-  // Fetch analytics on mount and when filters change
   useEffect(() => {
     fetchAllAnalytics();
   }, [sessionFilter, toolFilters, modelFilters, timeRange, customFromDate, customToDate]);
 
   const fetchAllAnalytics = async () => {
-    setLoading(true);
     try {
       let params = new URLSearchParams();
       if (sessionFilter !== "all") params.append("session_id", sessionFilter);
 
-      // Calculate date range
       let fromDate = null;
       let toDate = null;
 
@@ -63,19 +66,10 @@ export default function AnalyticsDashboard({ onClose }) {
         fetch(`${API_URL}/messages-analytics?${params}`)
       ]);
 
-      if (analyticsRes.ok) {
-        const data = await analyticsRes.json();
-        setAnalytics(data);
-      }
-
-      if (messagesRes.ok) {
-        const data = await messagesRes.json();
-        setMessagesAnalytics(data);
-      }
+      if (analyticsRes.ok) setAnalytics(await analyticsRes.json());
+      if (messagesRes.ok) setMessagesAnalytics(await messagesRes.json());
     } catch (err) {
       console.error("Failed to fetch analytics", err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -95,19 +89,24 @@ export default function AnalyticsDashboard({ onClose }) {
     );
   };
 
-  // Filter tool data
+  const toggleSection = (sectionName) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [sectionName]: !prev[sectionName]
+    }));
+  };
+
   const filteredToolData = analytics?.raw || [];
   const processedToolData = toolFilters.length > 0
     ? filteredToolData.filter(d => toolFilters.includes(d.tool_name))
     : filteredToolData;
 
-  // Filter message data
   const filteredMessageData = messagesAnalytics?.raw || [];
   const processedMessageData = modelFilters.length > 0
     ? filteredMessageData.filter(d => modelFilters.includes(d.model_name))
     : filteredMessageData;
 
-  // ===== HERO CHART: Model vs Query Answer Time =====
+  // Data calculations
   const modelAvgAnswerTime = (messagesAnalytics?.models || []).map(model => {
     const modelMessages = processedMessageData.filter(d => d.model_name === model);
     const avgTime = modelMessages.length > 0
@@ -116,7 +115,6 @@ export default function AnalyticsDashboard({ onClose }) {
     return { model, avgTime: parseFloat(avgTime.toFixed(2)), count: modelMessages.length };
   }).sort((a, b) => b.avgTime - a.avgTime);
 
-  // Tool response time
   const toolResponseTimeData = processedToolData.reduce((acc, d) => {
     const existing = acc.find(x => x.tool === d.tool_name);
     if (existing) {
@@ -176,283 +174,324 @@ export default function AnalyticsDashboard({ onClose }) {
     return { session: sessionId.slice(0, 8), count };
   }).sort((a, b) => b.count - a.count);
 
+  const avgAnswerTime = processedMessageData.length > 0
+    ? (processedMessageData.reduce((sum, d) => sum + (d.total_time || 0), 0) / processedMessageData.length).toFixed(2)
+    : 0;
+
   return (
-    <div className="analytics-dashboard-page">
+    <div className="adp-root">
       {/* Header */}
-      <div className="analytics-page-header">
+      <div className="adp-header">
+        <div className="adp-logo">
+          <div className="adp-logo-dot" />
+          <span>Chronicle</span>
+        </div>
         <h1>Activity Dashboard</h1>
-        <button className="analytics-back-btn" onClick={onClose}>← Return</button>
+        <button className="adp-back-btn" onClick={() => router.back()}>← Return</button>
       </div>
 
-      {/* Filters */}
-      <div className="analytics-filters">
-        <div className="filter-group">
-          <label>Session</label>
-          <select value={sessionFilter} onChange={(e) => setSessionFilter(e.target.value)}>
-            <option value="all">All Sessions</option>
-            {(analytics?.sessions || []).map(s => (
-              <option key={s} value={s}>{s.slice(0, 8)}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="filter-group">
-          <label>Tools</label>
-          <div className="tool-checkboxes">
-            {(analytics?.tool_names || []).map(tool => (
-              <label key={tool} className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={toolFilters.includes(tool)}
-                  onChange={() => handleToolFilterToggle(tool)}
-                />
-                <span>{tool}</span>
-              </label>
-            ))}
+      <div className="adp-body">
+        {/* Sidebar Filters */}
+        <aside className="adp-sidebar">
+          <div className="adp-filter-section">
+            <label className="adp-filter-label">Session</label>
+            <select className="adp-filter-select" value={sessionFilter} onChange={(e) => setSessionFilter(e.target.value)}>
+              <option value="all">All Sessions</option>
+              {(analytics?.sessions || []).map(s => (
+                <option key={s} value={s}>{s.slice(0, 8)}</option>
+              ))}
+            </select>
           </div>
-        </div>
 
-        <div className="filter-group">
-          <label>Models</label>
-          <div className="tool-checkboxes">
-            {(messagesAnalytics?.models || []).map(model => (
-              <label key={model} className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={modelFilters.includes(model)}
-                  onChange={() => handleModelFilterToggle(model)}
-                />
-                <span>{model}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="filter-group">
-          <label>Time Range</label>
-          <select value={timeRange} onChange={(e) => setTimeRange(e.target.value)}>
-            <option value="all">All Time</option>
-            <option value="7days">Last 7 Days</option>
-            <option value="30days">Last 30 Days</option>
-            <option value="custom">Custom</option>
-          </select>
-        </div>
-
-        {timeRange === "custom" && (
-          <>
-            <div className="filter-group">
-              <label>From</label>
-              <input
-                type="datetime-local"
-                value={customFromDate}
-                onChange={(e) => setCustomFromDate(e.target.value)}
-              />
-            </div>
-            <div className="filter-group">
-              <label>To</label>
-              <input
-                type="datetime-local"
-                value={customToDate}
-                onChange={(e) => setCustomToDate(e.target.value)}
-              />
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Hero Chart: Model Answer Time */}
-      <div className="chart-card hero-chart">
-        <h3>Query Answer Time by Model</h3>
-        {modelAvgAnswerTime.length > 0 ? (
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={modelAvgAnswerTime}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
-              <XAxis dataKey="model" fontSize={12} />
-              <YAxis fontSize={12} label={{ value: "Avg Time (s)", angle: -90, position: "insideLeft" }} />
-              <Tooltip formatter={(value) => value.toFixed(2)} />
-              <Bar dataKey="avgTime" fill="#1f77b4" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <div style={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary, #555)' }}>
-            No data available
-          </div>
-        )}
-      </div>
-
-      {/* Charts Grid */}
-      <div className="analytics-charts-grid">
-        {/* Tool Response Time */}
-        <div className="chart-card">
-          <h3>Response Time by Tool (ms)</h3>
-          {toolResponseTimeData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={toolResponseTimeData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
-                <XAxis dataKey="tool" fontSize={12} />
-                <YAxis fontSize={12} />
-                <Tooltip formatter={(value) => value.toFixed(2)} />
-                <Bar dataKey="time" fill="#1f77b4" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div style={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary, #555)' }}>
-              No data available
-            </div>
-          )}
-        </div>
-
-        {/* Docs Retrieved */}
-        <div className="chart-card">
-          <h3>Documents Retrieved by Tool</h3>
-          {docsRetrievedData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={docsRetrievedData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
-                <XAxis dataKey="tool" fontSize={12} />
-                <YAxis fontSize={12} />
-                <Tooltip />
-                <Bar dataKey="docs" fill="#ff7f0e" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div style={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary, #555)' }}>
-              No data available
-            </div>
-          )}
-        </div>
-
-        {/* Error Rate */}
-        <div className="chart-card">
-          <h3>Success vs Error Rate</h3>
-          {errorRateData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={errorRateData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
-                <XAxis dataKey="name" fontSize={12} />
-                <YAxis fontSize={12} />
-                <Tooltip />
-                <Bar dataKey="success" fill="#2ca02c" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="errors" fill="#d62728" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div style={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary, #555)' }}>
-              No data available
-            </div>
-          )}
-        </div>
-
-        {/* Tool Usage Frequency */}
-        <div className="chart-card">
-          <h3>Tool Usage Frequency</h3>
-          {toolUsageData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={toolUsageData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, value }) => `${name}: ${value}`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
+          <div className="adp-filter-section">
+            <label className="adp-filter-label">Tools</label>
+            <div className="adp-filter-pills">
+              {(analytics?.tool_names || []).map(tool => (
+                <button
+                  key={tool}
+                  className={`adp-filter-pill ${toolFilters.includes(tool) ? 'active' : ''}`}
+                  onClick={() => handleToolFilterToggle(tool)}
                 >
-                  {toolUsageData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={getToolColor(entry.name)} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <div style={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary, #555)' }}>
-              No data available
+                  {tool}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* Response Time Trend */}
-        <div className="chart-card chart-card-wide">
-          <h3>Response Time Trend</h3>
-          {responseTimeTrendData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={responseTimeTrendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
-                <XAxis dataKey="timestamp" fontSize={10} angle={-45} textAnchor="end" height={80} />
-                <YAxis fontSize={12} />
-                <Tooltip />
-                <Line
-                  type="monotone"
-                  dataKey="time"
-                  stroke="#1f77b4"
-                  dot={false}
-                  isAnimationActive={false}
-                  name="Response Time (ms)"
+          <div className="adp-filter-section">
+            <label className="adp-filter-label">Models</label>
+            <div className="adp-filter-pills">
+              {(messagesAnalytics?.models || []).map(model => (
+                <button
+                  key={model}
+                  className={`adp-filter-pill ${modelFilters.includes(model) ? 'active' : ''}`}
+                  onClick={() => handleModelFilterToggle(model)}
+                >
+                  {model}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="adp-filter-section">
+            <label className="adp-filter-label">Time Range</label>
+            <select className="adp-filter-select" value={timeRange} onChange={(e) => setTimeRange(e.target.value)}>
+              <option value="all">All Time</option>
+              <option value="7days">Last 7 Days</option>
+              <option value="30days">Last 30 Days</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+
+          {timeRange === "custom" && (
+            <>
+              <div className="adp-filter-section">
+                <label className="adp-filter-label">From</label>
+                <input
+                  type="datetime-local"
+                  className="adp-filter-input"
+                  value={customFromDate}
+                  onChange={(e) => setCustomFromDate(e.target.value)}
                 />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <div style={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary, #555)' }}>
-              No data available
+              </div>
+              <div className="adp-filter-section">
+                <label className="adp-filter-label">To</label>
+                <input
+                  type="datetime-local"
+                  className="adp-filter-input"
+                  value={customToDate}
+                  onChange={(e) => setCustomToDate(e.target.value)}
+                />
+              </div>
+            </>
+          )}
+        </aside>
+
+        {/* Main Content */}
+        <main className="adp-main">
+          {/* KPI Row */}
+          <div className="adp-kpi-row">
+            <div className="adp-kpi-card">
+              <div className="adp-kpi-icon">⚡</div>
+              <div>
+                <div className="adp-kpi-value">{analytics?.total_records || 0}</div>
+                <div className="adp-kpi-label">Total Queries</div>
+              </div>
+            </div>
+            <div className="adp-kpi-card">
+              <div className="adp-kpi-icon">🗂</div>
+              <div>
+                <div className="adp-kpi-value">{analytics?.sessions?.length || 0}</div>
+                <div className="adp-kpi-label">Sessions</div>
+              </div>
+            </div>
+            <div className="adp-kpi-card">
+              <div className="adp-kpi-icon">🔧</div>
+              <div>
+                <div className="adp-kpi-value">{analytics?.tool_names?.length || 0}</div>
+                <div className="adp-kpi-label">Tools Active</div>
+              </div>
+            </div>
+            <div className="adp-kpi-card">
+              <div className="adp-kpi-icon">🤖</div>
+              <div>
+                <div className="adp-kpi-value">{messagesAnalytics?.models?.length || 0}</div>
+                <div className="adp-kpi-label">Models</div>
+              </div>
+            </div>
+            <div className="adp-kpi-card">
+              <div className="adp-kpi-icon">⏱</div>
+              <div>
+                <div className="adp-kpi-value">{avgAnswerTime}s</div>
+                <div className="adp-kpi-label">Avg Answer Time</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Agent Performance Section */}
+          <div className="adp-section-header">
+            <div className="adp-section-label">Agent Performance</div>
+            <button
+              className="adp-section-toggle"
+              onClick={() => toggleSection('agentPerformance')}
+              aria-label="Toggle Agent Performance section"
+            >
+              {collapsedSections.agentPerformance ? '▶' : '▼'}
+            </button>
+          </div>
+          {!collapsedSections.agentPerformance && (
+            <div className="adp-hero-chart adp-chart-card">
+              <h3>Query Answer Time by Model</h3>
+              {modelAvgAnswerTime.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={modelAvgAnswerTime}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(99,102,241,0.08)" />
+                    <XAxis dataKey="model" fontSize={12} stroke="#64748b" />
+                    <YAxis fontSize={12} stroke="#64748b" label={{ value: "Avg Time (s)", angle: -90, position: "insideLeft" }} />
+                    <Tooltip contentStyle={{ background: 'rgba(255,255,255,0.95)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px' }} />
+                    <Bar dataKey="avgTime" fill="#6366f1" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="adp-empty">
+                  <span>No data available</span>
+                </div>
+              )}
             </div>
           )}
-        </div>
 
-        {/* Query Volume by Session */}
-        <div className="chart-card chart-card-wide">
-          <h3>Query Volume by Session</h3>
-          {queryVolumeBySession.length > 0 ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={queryVolumeBySession}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
-                <XAxis dataKey="session" fontSize={12} />
-                <YAxis fontSize={12} />
-                <Tooltip />
-                <Bar dataKey="count" fill="#9467bd" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div style={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary, #555)' }}>
-              No data available
+          {/* Tool Metrics Section */}
+          <div className="adp-section-header">
+            <div className="adp-section-label">Tool Metrics</div>
+            <button
+              className="adp-section-toggle"
+              onClick={() => toggleSection('toolMetrics')}
+              aria-label="Toggle Tool Metrics section"
+            >
+              {collapsedSections.toolMetrics ? '▶' : '▼'}
+            </button>
+          </div>
+          {!collapsedSections.toolMetrics && (
+          <div className="adp-charts-grid">
+            <div className="adp-chart-card">
+              <h3>Response Time by Tool</h3>
+              {toolResponseTimeData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={toolResponseTimeData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(99,102,241,0.08)" />
+                    <XAxis dataKey="tool" fontSize={12} stroke="#64748b" />
+                    <YAxis fontSize={12} stroke="#64748b" />
+                    <Tooltip contentStyle={{ background: 'rgba(255,255,255,0.95)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px' }} />
+                    <Bar dataKey="time" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="adp-empty"><span>No data</span></div>
+              )}
             </div>
+
+            <div className="adp-chart-card">
+              <h3>Documents Retrieved</h3>
+              {docsRetrievedData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={docsRetrievedData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(99,102,241,0.08)" />
+                    <XAxis dataKey="tool" fontSize={12} stroke="#64748b" />
+                    <YAxis fontSize={12} stroke="#64748b" />
+                    <Tooltip contentStyle={{ background: 'rgba(255,255,255,0.95)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px' }} />
+                    <Bar dataKey="docs" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="adp-empty"><span>No data</span></div>
+              )}
+            </div>
+
+            <div className="adp-chart-card">
+              <h3>Success vs Error Rate</h3>
+              {errorRateData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={errorRateData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(99,102,241,0.08)" />
+                    <XAxis dataKey="name" fontSize={12} stroke="#64748b" />
+                    <YAxis fontSize={12} stroke="#64748b" />
+                    <Tooltip contentStyle={{ background: 'rgba(255,255,255,0.95)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px' }} />
+                    <Bar dataKey="success" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="errors" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="adp-empty"><span>No data</span></div>
+              )}
+            </div>
+
+            <div className="adp-chart-card">
+              <h3>Tool Usage Frequency</h3>
+              {toolUsageData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={toolUsageData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, value }) => `${name}: ${value}`}
+                      outerRadius={70}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {toolUsageData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={getToolColor(entry.name)} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ background: 'rgba(255,255,255,0.95)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="adp-empty"><span>No data</span></div>
+              )}
+            </div>
+          </div>
           )}
-        </div>
-      </div>
 
-      {/* Stats Summary */}
-      <div className="analytics-stats">
-        <div className="stat-item">
-          <span className="stat-label">Total Tool Records</span>
-          <span className="stat-value">{analytics?.total_records || 0}</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-label">Sessions</span>
-          <span className="stat-value">{analytics?.sessions?.length || 0}</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-label">Tools</span>
-          <span className="stat-value">{analytics?.tool_names?.length || 0}</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-label">Models</span>
-          <span className="stat-value">{messagesAnalytics?.models?.length || 0}</span>
-        </div>
-        {processedMessageData.length > 0 && (
-          <>
-            <div className="stat-item">
-              <span className="stat-label">Avg Answer Time</span>
-              <span className="stat-value">
-                {(processedMessageData.reduce((sum, d) => sum + (d.total_time || 0), 0) / processedMessageData.length).toFixed(2)}s
-              </span>
+          {/* Trends Section */}
+          <div className="adp-section-header">
+            <div className="adp-section-label">Trends</div>
+            <button
+              className="adp-section-toggle"
+              onClick={() => toggleSection('trends')}
+              aria-label="Toggle Trends section"
+            >
+              {collapsedSections.trends ? '▶' : '▼'}
+            </button>
+          </div>
+          {!collapsedSections.trends && (
+          <div className="adp-charts-grid">
+            <div className="adp-chart-card adp-wide">
+              <h3>Response Time Trend</h3>
+              {responseTimeTrendData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={responseTimeTrendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(99,102,241,0.08)" />
+                    <XAxis dataKey="timestamp" fontSize={10} angle={-45} textAnchor="end" height={80} stroke="#64748b" />
+                    <YAxis fontSize={12} stroke="#64748b" />
+                    <Tooltip contentStyle={{ background: 'rgba(255,255,255,0.95)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px' }} />
+                    <Line
+                      type="monotone"
+                      dataKey="time"
+                      stroke="#6366f1"
+                      dot={false}
+                      isAnimationActive={false}
+                      name="Response Time (ms)"
+                      strokeWidth={2}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="adp-empty"><span>No data</span></div>
+              )}
             </div>
-          </>
-        )}
-      </div>
 
-      {/* Loading state */}
-      {loading && <div className="analytics-loading">Loading analytics...</div>}
+            <div className="adp-chart-card adp-wide">
+              <h3>Query Volume by Session</h3>
+              {queryVolumeBySession.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={queryVolumeBySession}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(99,102,241,0.08)" />
+                    <XAxis dataKey="session" fontSize={12} stroke="#64748b" />
+                    <YAxis fontSize={12} stroke="#64748b" />
+                    <Tooltip contentStyle={{ background: 'rgba(255,255,255,0.95)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px' }} />
+                    <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="adp-empty"><span>No data</span></div>
+              )}
+            </div>
+          </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

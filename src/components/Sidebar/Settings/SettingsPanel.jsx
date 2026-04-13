@@ -81,7 +81,7 @@ export default function SettingsPanel({ isCollapsed }) {
       {/* ── Sidebar footer (always visible) ── */}
       <div className={`settings-footer${isCollapsed ? " collapsed" : ""}`}>
         {activeModel && (
-          <div className="settings-model-chip">
+          <div className="settings-model-chip" onClick={() => setOpen(true)}>
             <span className="model-dot" />
             <span className="model-name">{activeModel.name}</span>
           </div>

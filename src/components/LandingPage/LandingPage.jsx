@@ -23,7 +23,7 @@ export default function LandingPage() {
         </svg>
       ),
       title: "Semantic Search",
-      desc: "Vector-powered retrieval finds relevant passages across your entire document corpus instantly.",
+      desc: "Vector-powered retrieval finds relevant passages across your entire novel corpus instantly.",
     },
     {
       icon: (
@@ -68,7 +68,7 @@ export default function LandingPage() {
     { value: "ReAct", label: "Agent Framework" },
     { value: "RAG", label: "Retrieval Method" },
     { value: "SSE", label: "Streaming Events" },
-    { value: "MongoDB", label: "Vector Store" },
+    { value: "Atlas MongoDB", label: "Vector Store" },
   ];
 
   return (
@@ -83,32 +83,31 @@ export default function LandingPage() {
         <div className="landing-logo">
           <div className="landing-logo-dot" />
           <span>Chronicle</span>
+          <div className="landing-logo-dot" />
+          <span>Agentic RAG</span>
+          {/* </div> */}
         </div>
-        <button className="landing-nav-link" onClick={() => router.push('/dashboard/analytics')}>
+        {/* <button className="landing-nav-link" onClick={() => router.push('/dashboard/analytics')}>
           Analytics
           <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="3" y1="8" x2="13" y2="8" />
             <polyline points="9 4 13 8 9 12" />
           </svg>
-        </button>
+        </button> */}
       </nav>
 
       {/* Hero section */}
       <section className="landing-hero">
-        <div className="landing-eyebrow">
-          <span className="landing-eyebrow-dot" />
-          Agentic RAG · Powered by Claude
-        </div>
 
         <h1 className="landing-title">
-          Your Documents,
+          Your Novel,
           <br />
           <span className="landing-title-gradient">Intelligently Answered</span>
         </h1>
 
         <p className="landing-subtitle">
           Chronicle combines vector search with a ReAct reasoning agent to answer nuanced questions
-          across your document library — with full transparency into every step.
+          across your novel — with full transparency into every step.
         </p>
 
         <div className="landing-cta-group">
@@ -116,7 +115,7 @@ export default function LandingPage() {
             <svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor">
               <path d="M2 5a2 2 0 012-2h11a2 2 0 012 2v7a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
             </svg>
-            Start Research
+            Start Chating
           </button>
           <button className="landing-cta-secondary" onClick={() => router.push('/dashboard/analytics')}>
             <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -140,7 +139,7 @@ export default function LandingPage() {
 
       {/* Feature cards */}
       <section className="landing-features">
-        <p className="landing-section-label">What Chronicle does</p>
+        <p className="landing-section-label">What Chronicle does,</p>
         <div className="landing-feature-grid">
           {features.map((f) => (
             <div key={f.title} className="landing-feature-card">
@@ -154,7 +153,7 @@ export default function LandingPage() {
 
       {/* Bottom CTA strip */}
       <div className="landing-bottom-cta">
-        <span>Ready to explore your documents?</span>
+        <span>Ready to explore your Novel?</span>
         <button className="landing-cta-primary" onClick={() => router.push('/chat')}>
           Open Dashboard →
         </button>

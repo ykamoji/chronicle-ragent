@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useSession } from "../context/SessionContext";
+import { useSession } from "../../../context/SessionContext";
 import "./DocumentHub.css";
 
 const API_URL = "";

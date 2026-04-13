@@ -1,8 +1,8 @@
 "use client";
 import { SessionProvider, useSession } from "../../context/SessionContext";
-import Sidebar from "../../components/Sidebar";
-import ChatPanel from "../../components/ChatPanel";
-import IngestionPanel from "../../components/IngestionPanel";
+import Sidebar from "../../components/Sidebar/Sidebar";
+import ChatPanel from "../../components/ChatPanel/ChatPanel";
+import IngestionPanel from "../../components/IngestionPanel/IngestionPanel";
 
 function ChatLayout() {
   const { isPanelExpanded } = useSession();

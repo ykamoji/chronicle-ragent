@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useSession } from "../context/SessionContext";
+import { useSession } from "../../../context/SessionContext";
 import "./ChapterSummaries.css";
 
 export default function ChapterSummaries({ currentSummaries }) {

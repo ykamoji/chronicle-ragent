@@ -17,6 +17,24 @@
   overflow: hidden;
 }
 
+.sidebar-header .adp-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: #6366f1;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.sidebar-header .adp-logo-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6366f1;
+  animation: pulse 2s ease-in-out infinite;
+}
+
 /* Sidebar Items */
 .sidebar-item {
   position: relative;

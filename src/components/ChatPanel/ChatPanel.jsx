@@ -1,8 +1,8 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { useSession } from "../context/SessionContext";
+import { useSession } from "../../context/SessionContext";
 import ReactMarkdown from 'react-markdown';
-import { CollapsibleObservation } from "./Observation";
+import { CollapsibleObservation } from "./Observations/Observation";
 import "./ChatPanel.css";
 
 const STREAM_URL = "http://127.0.0.1:5328"; // Direct to Flask for SSE streaming (bypasses Next.js proxy buffering)

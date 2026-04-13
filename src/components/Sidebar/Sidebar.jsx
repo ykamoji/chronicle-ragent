@@ -1,9 +1,9 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "../context/SessionContext";
-import ConfirmDialog from "./ConfirmDialog";
-import SettingsPanel from "./SettingsPanel";
+import { useSession } from "../../context/SessionContext";
+import ConfirmDialog from "../Helpers/ConfirmDialog";
+import SettingsPanel from "./Settings/SettingsPanel";
 import "./Sidebar.css";
 
 const API_URL = "";
@@ -71,17 +71,10 @@ export default function Sidebar() {
   return (
     <aside className={`sidebar-panel glass-panel ${isCollapsed ? "collapsed" : ""}`}>
       <div className="sidebar-header" style={{ display: "flex", justifyContent: isCollapsed ? "center" : "space-between", gap: "8px", marginBottom: "8px" }}>
-        <button
-          className="icon-btn"
-          onClick={() => router.push("/")}
-          title="Back to home"
-          style={{ padding: "8px 12px", background: "transparent", border: "1px solid var(--panel-glass-border)", borderRadius: "8px", color: "var(--text-primary)", display: isCollapsed ? "none" : "flex", alignItems: "center", justifyContent: "center" }}
-        >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-            <polyline points="9 22 9 12 15 12 15 22"></polyline>
-          </svg>
-        </button>
+        <div className="adp-logo" style={{ display: isCollapsed ? "none" : "flex", alignItems: "center" }} onClick={() => router.push("/")}>
+          <div className="adp-logo-dot" />
+          <span>Chronicle</span>
+        </div>
         <button
           className="icon-btn"
           onClick={() => setIsCollapsed(!isCollapsed)}
@@ -94,51 +87,53 @@ export default function Sidebar() {
         {isCollapsed ? "+" : "+ New Chat"}
       </button>
 
-      {!isCollapsed && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
-          {sessionList.map((session) => (
-            <div
-              key={session.session_id}
-              onClick={() => {
-                loadSession(session.session_id);
-                setActiveMenuId(null);
-              }}
-              className={`sidebar-item ${sessionId === session.session_id ? "active" : ""}`}
-            >
-              {session.chat_name || `Session ${session.session_id.slice(0, 8)}`}
-              <button
-                className="session-menu-trigger"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (activeMenuId === session.session_id) {
-                    setActiveMenuId(null);
-                  } else {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setMenuPos({ top: rect.bottom + 4, left: rect.right - 140 });
-                    setActiveMenuId(session.session_id);
-                  }
+      {
+        !isCollapsed && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
+            {sessionList.map((session) => (
+              <div
+                key={session.session_id}
+                onClick={() => {
+                  loadSession(session.session_id);
+                  setActiveMenuId(null);
                 }}
+                className={`sidebar-item ${sessionId === session.session_id ? "active" : ""}`}
               >
-                ⋮
-              </button>
-
-              {activeMenuId === session.session_id && (
-                <div
-                  ref={menuRef}
-                  className="dropdown-menu"
-                  style={{ position: 'fixed', top: menuPos.top, left: menuPos.left + 100, right: 'auto' }}
+                {session.chat_name || `Session ${session.session_id.slice(0, 8)}`}
+                <button
+                  className="session-menu-trigger"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (activeMenuId === session.session_id) {
+                      setActiveMenuId(null);
+                    } else {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setMenuPos({ top: rect.bottom + 4, left: rect.right - 140 });
+                      setActiveMenuId(session.session_id);
+                    }
+                  }}
                 >
-                  <button className="dropdown-item" onClick={(e) => handleDummyAction(e, 'Pin')}> Pin</button>
-                  <button className="dropdown-item" onClick={(e) => handleDummyAction(e, 'Archive')}> Archive</button>
-                  <button className="dropdown-item" onClick={(e) => handleDummyAction(e, 'Share')}> Share</button>
-                  <div style={{ height: "1px", background: "var(--panel-glass-border)", margin: "4px 0" }}></div>
-                  <button className="dropdown-item delete" onClick={(e) => handleDeleteClick(e, session.session_id)}>Delete</button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+                  ⋮
+                </button>
+
+                {activeMenuId === session.session_id && (
+                  <div
+                    ref={menuRef}
+                    className="dropdown-menu"
+                    style={{ position: 'fixed', top: menuPos.top, left: menuPos.left + 100, right: 'auto' }}
+                  >
+                    <button className="dropdown-item" onClick={(e) => handleDummyAction(e, 'Pin')}> Pin</button>
+                    <button className="dropdown-item" onClick={(e) => handleDummyAction(e, 'Archive')}> Archive</button>
+                    <button className="dropdown-item" onClick={(e) => handleDummyAction(e, 'Share')}> Share</button>
+                    <div style={{ height: "1px", background: "var(--panel-glass-border)", margin: "4px 0" }}></div>
+                    <button className="dropdown-item delete" onClick={(e) => handleDeleteClick(e, session.session_id)}>Delete</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )
+      }
 
       <SettingsPanel isCollapsed={isCollapsed} />
 
@@ -149,6 +144,6 @@ export default function Sidebar() {
         onConfirm={confirmDelete}
         onCancel={() => setPendingDeleteId(null)}
       />
-    </aside>
+    </aside >
   );
 }

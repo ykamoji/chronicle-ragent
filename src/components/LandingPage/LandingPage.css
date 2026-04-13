@@ -49,24 +49,63 @@
 }
 
 @keyframes floatOrb1 {
-  0%, 100% { transform: translate(0, 0); }
-  25% { transform: translate(30px, -40px); }
-  50% { transform: translate(-20px, 30px); }
-  75% { transform: translate(40px, 20px); }
+
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  25% {
+    transform: translate(30px, -40px);
+  }
+
+  50% {
+    transform: translate(-20px, 30px);
+  }
+
+  75% {
+    transform: translate(40px, 20px);
+  }
 }
 
 @keyframes floatOrb2 {
-  0%, 100% { transform: translate(0, 0); }
-  25% { transform: translate(-40px, 30px); }
-  50% { transform: translate(30px, -20px); }
-  75% { transform: translate(-30px, -40px); }
+
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  25% {
+    transform: translate(-40px, 30px);
+  }
+
+  50% {
+    transform: translate(30px, -20px);
+  }
+
+  75% {
+    transform: translate(-30px, -40px);
+  }
 }
 
 @keyframes floatOrb3 {
-  0%, 100% { transform: translate(0, 0); }
-  25% { transform: translate(20px, 40px); }
-  50% { transform: translate(-30px, -30px); }
-  75% { transform: translate(40px, -20px); }
+
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  25% {
+    transform: translate(20px, 40px);
+  }
+
+  50% {
+    transform: translate(-30px, -30px);
+  }
+
+  75% {
+    transform: translate(40px, -20px);
+  }
 }
 
 /* Navigation */
@@ -129,7 +168,7 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 60px 40px;
+  padding: 10px 10px;
   text-align: center;
 }
 
@@ -144,8 +183,7 @@
   border-radius: 24px;
   color: var(--accent-cyan);
   font-size: 0.85rem;
-  font-weight: 600;
-  text-transform: uppercase;
+  font-weight: 550;
   letter-spacing: 0.5px;
   margin-bottom: 32px;
   animation: fadeInUp 0.7s ease-out;
@@ -159,7 +197,7 @@
 }
 
 .landing-title {
-  font-size: clamp(2.5rem, 8vw, 4.5rem);
+  font-size: clamp(2.5rem, 8vw, 4rem);
   font-weight: 800;
   color: var(--text-primary);
   line-height: 1.1;
@@ -176,8 +214,15 @@
 }
 
 @keyframes shimmer {
-  0%, 100% { filter: brightness(1); }
-  50% { filter: brightness(1.15); }
+
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+
+  50% {
+    filter: brightness(1.15);
+  }
 }
 
 .landing-subtitle {
@@ -194,7 +239,7 @@
   display: flex;
   gap: 16px;
   justify-content: center;
-  margin-bottom: 56px;
+  margin-bottom: 20px;
   animation: fadeInUp 0.7s ease-out 0.3s both;
   flex-wrap: wrap;
 }
@@ -271,7 +316,6 @@
 .landing-stat-label {
   font-size: 0.75rem;
   color: var(--text-secondary);
-  text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
@@ -279,7 +323,7 @@
 .landing-features {
   position: relative;
   z-index: 5;
-  padding: 80px 40px;
+  padding: 10px 10px;
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
@@ -289,10 +333,11 @@
   text-align: center;
   font-size: 0.85rem;
   color: var(--text-secondary);
-  text-transform: uppercase;
+  /* text-transform: uppercase; */
   letter-spacing: 0.5px;
   font-weight: 600;
-  margin-bottom: 48px;
+  padding-top: 10px;
+  margin-bottom: 18px;
 }
 
 .landing-feature-grid {
@@ -302,7 +347,7 @@
 }
 
 .landing-feature-card {
-  padding: 32px 24px;
+  padding: 24px 24px;
   background: rgba(255, 255, 255, 0.5);
   border: 1px solid rgba(99, 102, 241, 0.15);
   border-radius: 12px;
@@ -388,7 +433,7 @@
   }
 
   .landing-cta-group {
-    margin-bottom: 40px;
+    margin-bottom: 30px;
   }
 
   .landing-features {
@@ -419,6 +464,7 @@
     opacity: 0;
     transform: translateY(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -430,6 +476,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -440,15 +487,19 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
 }
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.6;
   }

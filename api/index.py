@@ -1,3 +1,4 @@
+from api.agent.tools import TOOLS_NAME_MAP
 from dotenv import load_dotenv
 load_dotenv()
 import time
@@ -33,8 +34,36 @@ CORS(app)
 
 @app.route("/health", methods=["GET"])
 def health_check():
-    return jsonify({"status": "healthy", "mongo_connected": mongo.client is not None})
 
+    try:
+        details = {}
+        mongo.client.admin.command("ping")
+        if mongo.client:
+            sess = mongo.get_sessions_collection()
+            details["DB"] = mongo.db.name
+            details[sess.name] = {
+                "count": sess.count_documents({})
+            }
+            vec = mongo.get_vector_collection()
+            details[vec.name] = {
+                "count": vec.count_documents({})
+            }
+            msg = mongo.get_messages_collection()
+            details[msg.name] = {
+                "count": msg.count_documents({})
+            }
+            ana = mongo.get_analytics_collection()
+            details[ana.name] = {
+                "count": ana.count_documents({})
+            
+            }        
+            return jsonify({"status": "healthy", "details":details, "mongo_connected": True})
+
+    except Exception as e:
+        logger.error(f"Failed to connect to MongoDB: {e}")
+        return jsonify({"status": "unhealthy", "details":details, "mongo_connected": False})
+
+        
 
 @app.route("/settings", methods=["GET", "PUT"])
 def handle_settings():
@@ -475,6 +504,7 @@ def get_analytics():
     Returns aggregated analytics including raw data, session list, and tool names.
     """
     analytics_col = mongo.get_analytics_collection()
+    sess_col = mongo.get_sessions_collection()
     if analytics_col is None:
         return jsonify({"error": "DB not connected"}), 503
 
@@ -506,11 +536,22 @@ def get_analytics():
     sessions = list(set(d.get("session_id") for d in raw_docs if d.get("session_id")))
     tool_names = list(set(d.get("tool_name") for d in raw_docs if d.get("tool_name")))
 
+    sess = list(sess_col.find({}, {"session_id": 1, "chat_name":1}))
+
+    session_map = {s['session_id']:s['chat_name'] for s in sess if s.get("chat_name")}
+
+    for d in raw_docs:
+        if d.get("tool_name"):
+            d['tool_name'] = TOOLS_NAME_MAP[d['tool_name']]
+
+    tool_names = [TOOLS_NAME_MAP[t] for t in tool_names]
+
     return jsonify({
         "raw": raw_docs,
         "sessions": sorted(sessions),
         "tool_names": sorted(tool_names),
-        "total_records": len(raw_docs)
+        "total_records": len(raw_docs),
+        "session_map": session_map
     })
 
 

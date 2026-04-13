@@ -1,7 +1,7 @@
 .analytics-dashboard-page {
   width: 100%;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f8f8f8 0%, #ffffff 100%);
+  background: linear-gradient(135deg, #f5f3ff 0%, #ffffff 100%);
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -39,8 +39,8 @@
 }
 
 .analytics-back-btn:hover {
-  background: rgba(0, 0, 0, 0.05);
-  border-color: rgba(0, 0, 0, 0.2);
+  background: rgba(99, 102, 241, 0.06);
+  border-color: rgba(99, 102, 241, 0.3);
 }
 
 /* Filters */
@@ -89,8 +89,8 @@
 .filter-group select:focus,
 .filter-group input[type="datetime-local"]:focus {
   outline: none;
-  border-color: var(--accent-cyan, #000);
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+  border-color: var(--accent-cyan, #6366f1);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
 }
 
 /* Tool Checkboxes */

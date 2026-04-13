@@ -35,7 +35,7 @@
 }
 
 .clickable-block:hover {
-  background-color: rgba(0, 0, 0, 0.04);
+  background-color: rgba(99, 102, 241, 0.06);
   opacity: 1;
   border-radius: 4px;
 }
@@ -98,20 +98,21 @@
 
 .source-link {
   font-size: 0.7rem;
-  color: #fff;
-  background: var(--text-secondary);
+  color: #ffffff;
+  background: #6366f1;
   padding: 2px 8px;
   border-radius: 12px;
   text-decoration: none;
-  border: 1px solid var(--text-secondary);
+  border: 1px solid #6366f1;
   transition: all 0.2s ease;
   font-weight: 500;
   cursor: pointer;
 }
 
 .source-link:hover {
-  color: #000;
-  background-color: #fff;
+  color: #6366f1;
+  background-color: rgba(99, 102, 241, 0.1);
+  border-color: #6366f1;
   transform: translateY(-1px);
   box-shadow: none;
 }

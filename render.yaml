@@ -7,7 +7,7 @@ services:
     # Root directory is the repo root since requirements.txt is there
     rootDir: .
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn api.index:app --timeout 120
+    startCommand: gunicorn api.index:app --timeout 120 --bind 0.0.0.0:$PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
@@ -25,13 +25,10 @@ services:
     runtime: node
     # Root directory is the repo root since package.json is there
     rootDir: .
-    buildCommand: pnpm install && pnpm run build
+    buildCommand: npm install -g pnpm && pnpm install && pnpm run build
     startCommand: pnpm run start
     envVars:
       - key: NODE_VERSION
         value: 20.x
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: chronicle-backend
-          property: url
+        value: https://chronicle-backend.onrender.com

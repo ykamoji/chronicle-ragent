@@ -1,7 +1,11 @@
-import os
 import re
-import fitz  # PyMuPDF
+import fitz
 from typing import List
+
+
+def clean_chapter_header(text: str) -> str:
+    pattern = r"^.*?\s*\(Chapter\s+(\d+)\).*"
+    return re.sub(pattern, r"Chapter \1", text)
 
 def extract_text_from_pdf(filepath: str) -> str:
     """Extracts all text from a PDF file."""
@@ -117,12 +121,16 @@ def chunk_by_chapter(text: str) -> List[str]:
     if not chapters:
         return chunk_text(text, target_tokens=15000)
 
+    chapters = [clean_chapter_header(ch) for ch in chapters]
+
     return chapters
 
 if __name__ == "__main__":
     text = extract_text_from_pdf("public/book_5_arc_1.pdf")
     chapters = chunk_by_chapter(text)
     print(len(chapters))
-    print(chapters[0])
+    print("\n")
+    for ch in chapters:
+        print(ch.split("\n\n")[0])
 
     

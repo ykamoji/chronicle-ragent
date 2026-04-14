@@ -3,6 +3,39 @@ import { useState, useEffect } from "react";
 import { useSession } from "../../../context/SessionContext";
 import "./DocumentHub.css";
 import { API_URL } from "../../../api";
+import { LOCAL_TIMEZONE } from "../../../timezone";
+
+const formatDate = (isoDate) => {
+  if (!isoDate) return "—";
+  try {
+    return new Date(isoDate).toLocaleDateString("en-US", {
+      timeZone: LOCAL_TIMEZONE,
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  } catch {
+    return "—";
+  }
+};
+
+const handleDownload = async () => {
+  const response = await fetch("/book_5_arc_1.pdf");
+  const blob = await response.blob();
+
+  const url = window.URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "book_5_arc_1.pdf";
+  document.body.appendChild(a);
+  a.click();
+
+  a.remove();
+  window.URL.revokeObjectURL(url);
+};
 
 export default function DocumentHub() {
   const [uploadStatus, setUploadStatus] = useState("");
@@ -94,22 +127,6 @@ export default function DocumentHub() {
     handleFileUpload(fakeEvent);
   };
 
-  const handleDownload = async () => {
-    const response = await fetch("/book_5_arc_1.pdf");
-    const blob = await response.blob();
-
-    const url = window.URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "book_5_arc_1.pdf";
-    document.body.appendChild(a);
-    a.click();
-
-    a.remove();
-    window.URL.revokeObjectURL(url);
-  };
-
   const startProgressStream = (id) => {
     // Direct link to Flask for SSE (bypassing Next.js proxy if needed)
     const sseUrl = `${API_URL}/ingest-progress/${id}`;
@@ -174,21 +191,6 @@ export default function DocumentHub() {
         </div>
       </div>
     );
-  };
-
-  const formatDate = (isoDate) => {
-    if (!isoDate) return "—";
-    try {
-      return new Date(isoDate).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit"
-      });
-    } catch {
-      return "—";
-    }
   };
 
   const currentSession = sessionList.find(session => session.session_id === sessionId)
@@ -277,7 +279,7 @@ export default function DocumentHub() {
                 <path d="M14 2v6h6" fill="#ef5350" />
                 <text x="6.5" y="17" fontSize="6" fontFamily="Arial, sans-serif" fill="white">PDF</text>
               </svg>
-              <span style={{ fontSize: "0.8rem", textAlign: "center" }}>Mini Arc.pdf</span>
+              <span style={{ fontSize: "0.8rem", textAlign: "center" }}>Book 5 Arc 1.pdf</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
               <button

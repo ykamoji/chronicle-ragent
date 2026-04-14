@@ -2,7 +2,7 @@ import os
 import re
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from google import genai
 from google.genai import types
 from api.agent.tools import TOOLS
@@ -128,7 +128,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                 yield json.dumps({
                     "type": "error",
                     "content": "Interrupted by user.",
-                    "time": datetime.now().isoformat()
+                    "time": datetime.now(timezone.utc).isoformat()
                 })
                 return
 
@@ -152,7 +152,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                                     "type": "thought",
                                     "content": thought_text,
                                     "action": None,
-                                    "time": datetime.now().isoformat()
+                                    "time": datetime.now(timezone.utc).isoformat()
                                 })
                         else:
                             response_text += part.text
@@ -169,7 +169,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                 logger.error(f"LLM call failed: {e}")
                 memory.add_message(session_id, "Agent", f"LLM Error: {e}", is_hidden=True)
                 memory.log_query_analytics(session_id, query, query_analytics)
-                yield json.dumps({"type": "error", "content": f"LLM error: {e}", "time": datetime.now().isoformat()})
+                yield json.dumps({"type": "error", "content": f"LLM error: {e}", "time": datetime.now(timezone.utc).isoformat()})
                 return
 
             current_prompt += llm_text + "\n"
@@ -193,7 +193,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                 "type": "thought",
                 "content": thought_text if thought_text else "Thinking...",
                 "action": f"{tool_name}[{tool_arg}]" if tool_name else None,
-                "time": datetime.now().isoformat()
+                "time": datetime.now(timezone.utc).isoformat()
             })
 
             # Save the message without Action: finish[...] to avoid redundancy in history
@@ -227,7 +227,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                     "session_id": session_id,
                     "model_name": model_name,
                     "total_time": round(total_time, 2),
-                    "time": datetime.now().isoformat()
+                    "time": datetime.now(timezone.utc).isoformat()
                 })
 
                 # Generate a chat name from the final response (in-stream)
@@ -237,7 +237,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                         "type": "chat_name",
                         "chat_name": new_chat_name,
                         "session_id": session_id,
-                        "time": datetime.now().isoformat()
+                        "time": datetime.now(timezone.utc).isoformat()
                     })
                 
                 # Flush analytics data
@@ -247,7 +247,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
             # logger.info(f"tool {tool_name} args {tool_arg}")
             
             # Yield tool call event
-            yield json.dumps({"type": "tool", "tool": tool_name, "args": tool_arg, "time": datetime.now().isoformat()})
+            yield json.dumps({"type": "tool", "tool": tool_name, "args": tool_arg, "time": datetime.now(timezone.utc).isoformat()})
 
             # Run the tool
             if tool_name in TOOLS:
@@ -264,14 +264,14 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
             trimmed_observations = trim_observation_block(obs_text.strip())
             if trimmed_observations:
                 memory.add_message(session_id, "System", trimmed_observations, is_hidden=True)
-                yield json.dumps({"type": "observation", "content": trimmed_observations, "time": datetime.now().isoformat()})
+                yield json.dumps({"type": "observation", "content": trimmed_observations, "time": datetime.now(timezone.utc).isoformat()})
 
             time.sleep(app_settings.get_delay())
 
         final_msg = "Agent reached maximum steps without finding a final answer."
         logger.warning(final_msg)
         memory.log_query_analytics(session_id, query, query_analytics)
-        yield json.dumps({"type": "answer", "content": final_msg, "session_id": session_id, "time": datetime.now().isoformat()})
+        yield json.dumps({"type": "answer", "content": final_msg, "session_id": session_id, "time": datetime.now(timezone.utc).isoformat()})
 
     except Exception as e:
         logger.error(f"Agent stream error: {e}")
@@ -279,4 +279,4 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
             memory.log_query_analytics(session_id, query, query_analytics)
         except Exception:
             pass
-        yield json.dumps({"type": "error", "content": f"Agent error: {e}", "time": datetime.now().isoformat()})
+        yield json.dumps({"type": "error", "content": f"Agent error: {e}", "time": datetime.now(timezone.utc).isoformat()})

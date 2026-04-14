@@ -30,18 +30,22 @@
 }
 
 .chat-content ol,
-.chat-content ul {
+.chat-content ul,
+.agent-step .thought ul,
+.agent-step .thought ol {
   padding-left: 1.5rem;
   list-style-position: outside;
   margin-top: 0.5rem;
   margin-bottom: 0.5rem;
 }
 
-.chat-content li {
+.chat-content li,
+.agent-step .thought li {
   margin-bottom: 0.25rem;
 }
 
-.chat-content strong {
+.chat-content strong,
+.agent-step .thought strong {
   font-weight: 600;
 }
 

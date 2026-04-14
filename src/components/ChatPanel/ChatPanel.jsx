@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import { CollapsibleObservation } from "./Observations/Observation";
 import "./ChatPanel.css";
 import { API_URL } from "../../api";
+import { LOCAL_TIMEZONE } from "../../timezone";
 
 
 // Direct to Flask for SSE streaming (bypasses Next.js proxy buffering)
@@ -40,7 +41,8 @@ const formatTime = (isoString) => {
   if (!isoString) return "";
   try {
     const date = new Date(isoString);
-    return date.toLocaleString("en-GB", {
+    return date.toLocaleString("en-US", {
+      timeZone: LOCAL_TIMEZONE,
       day: "2-digit",
       month: "short",   // Apr, May, etc.
       hour: "2-digit",
@@ -56,7 +58,8 @@ const formatTimeWithSeconds = (isoString) => {
   if (!isoString) return "";
   try {
     const date = new Date(isoString);
-    return date.toLocaleTimeString([], {
+    return date.toLocaleTimeString("en-US", {
+      timeZone: LOCAL_TIMEZONE,
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
@@ -205,7 +208,7 @@ export default function ChatPanel() {
     if (!userQuery) return;
 
     setQuery("");
-    setMessages((prev) => [...prev, { role: "user", content: userQuery, timestamp: new Date().toISOString() }]);
+    setMessages((prev) => [...prev, { role: "user", content: userQuery, timestamp: new Date().toLocaleString("en-US", { timeZone: LOCAL_TIMEZONE }) }]);
     setIsLoading(true);
     setAgentSteps([]); // Clear previous steps at start of new query
     setStreamSessionId(sessionId || null);
@@ -332,7 +335,7 @@ export default function ChatPanel() {
         if (currentSessionIdRef.current === currentSessionId) {
           setMessages((prev) => [
             ...prev,
-            { role: "agent", content: finalAnswer, timestamp: new Date().toISOString(), steps: currentSteps, model_name: responseModel, total_time: responseTime },
+            { role: "agent", content: finalAnswer, timestamp: new Date().toLocaleString("en-US", { timeZone: LOCAL_TIMEZONE }), steps: currentSteps, model_name: responseModel, total_time: responseTime },
           ]);
           if (currentSessionId) {
             await loadSession(currentSessionId, true);

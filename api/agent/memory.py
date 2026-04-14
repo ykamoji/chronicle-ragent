@@ -1,5 +1,5 @@
 from uuid import uuid4
-from datetime import datetime
+from datetime import datetime, timezone
 from api.db.mongo import mongo
 
 class AgentMemory:
@@ -32,7 +32,7 @@ class AgentMemory:
             "session_id": session_id,
             "role": role.lower(),
             "content": content,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "is_hidden": is_hidden
         }
         
@@ -53,7 +53,7 @@ class AgentMemory:
             
         doc = {
             "session_id": session_id,
-            "upload_time": datetime.now().isoformat(),
+            "upload_time": datetime.now(timezone.utc).isoformat(),
         }
         col.insert_one(doc)
 
@@ -162,7 +162,7 @@ class AgentMemory:
         if col is None:
             return
             
-        timestamp = datetime.now().isoformat()
+        timestamp = datetime.now(timezone.utc).isoformat()
         docs_to_insert = []
         for m in metrics:
             doc = {

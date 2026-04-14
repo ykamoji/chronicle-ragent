@@ -232,6 +232,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
 
                 # Generate a chat name from the final response (in-stream)
                 new_chat_name = memory.set_chat_name(session_id, tool_arg)
+                
                 if new_chat_name:
                     yield json.dumps({
                         "type": "chat_name",

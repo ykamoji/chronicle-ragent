@@ -61,19 +61,23 @@ export function SessionProvider({ children }) {
     }
 
     try {
-      console.log("Loading session", id);
-      const [sessRes, msgRes] = await Promise.all([
-        fetch(`${API_URL}/sessions/${id}`),
-        fetch(`${API_URL}/messages/${id}`)
-      ]);
 
-      if (sessRes.ok && msgRes.ok) {
-        const data = await sessRes.json();
+      setSessionId(id);
+
+      if (!forceRefresh) {
+        const sessRes = await fetch(`${API_URL}/sessions/${id}`);
+
+        if (sessRes.ok) {
+          const data = await sessRes.json();
+          setCurrentSummaries(data.metadata || []);
+          setIngestionProgress(data.ingestion_progress || null);
+        }
+      }
+
+      const msgRes = await fetch(`${API_URL}/messages/${id}`);
+
+      if (msgRes.ok) {
         const chatLogs = await msgRes.json();
-
-        setSessionId(data.session_id);
-        setCurrentSummaries(data.metadata || []);
-        setIngestionProgress(data.ingestion_progress || null);
 
         if (chatLogs && chatLogs.length > 0) {
           const parsedMsgs = [];
@@ -114,8 +118,6 @@ export function SessionProvider({ children }) {
         } else {
           setMessages([]);
         }
-
-          sessionsCacheRef.current[id] = { messages: parsedMsgs, summaries: data.metadata || [] };
       }
     } catch (err) {
       console.error("Failed to load session", err);

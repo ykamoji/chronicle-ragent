@@ -1,6 +1,13 @@
 from uuid import uuid4
 from datetime import datetime, timezone
 from api.db.mongo import mongo
+import os
+import logging
+from google import genai
+from google.genai import types as gtypes
+from api.config.settings import app_settings
+
+logger = logging.getLogger(__name__)
 
 class AgentMemory:
     """MongoDB backed conversation store for the agent."""
@@ -72,12 +79,8 @@ class AgentMemory:
         if not doc or doc.get("chat_name"):
             return None
 
+        logger.info("Creating chat name")
         try:
-            import os
-            from google import genai
-            from google.genai import types as gtypes
-            from api.config.settings import app_settings
-
             api_key = os.getenv("GEMINI_API_KEY")
             if not api_key:
                 return None
@@ -93,7 +96,7 @@ class AgentMemory:
                 contents=prompt,
                 config=gtypes.GenerateContentConfig(
                     temperature=0.3,
-                    max_output_tokens=20
+                    max_output_tokens=20,
                 )
             )
             chat_name = response.text.strip().strip('"').strip("'")[:80]  # trim safety cap
@@ -101,12 +104,11 @@ class AgentMemory:
                 {"session_id": session_id},
                 {"$set": {"chat_name": chat_name}}
             )
-            import logging
-            logging.getLogger(__name__).info(f"Chat name set for session {session_id}: '{chat_name}'")
+            
+            logger.info(f"Chat name set for session {session_id}: '{chat_name}'")
             return chat_name
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"Failed to generate chat name for session {session_id}: {e}")
+            logger.error(f"Failed to generate chat name for session {session_id}: {e}")
             return None
 
     def delete_last_query_internals(self, session_id: str) -> int:
@@ -129,18 +131,15 @@ class AgentMemory:
             # Stop as soon as we hit a visible agent reply
             if not msg.get("is_hidden") and msg.get("role") == "agent":
                 cut_index = i + 1
-                import logging
-                logging.getLogger(__name__).info(f"Cleanup: Found last visible agent reply at index {i}. Truncating after it.")
+                logger.info(f"Cleanup: Found last visible agent reply at index {i}. Truncating after it.")
                 break
             if i == 0:
                 cut_index = 0
-                import logging
-                logging.getLogger(__name__).info("Cleanup: No visible agent reply found. Truncating from the beginning.")
+                logger.info("Cleanup: No visible agent reply found. Truncating from the beginning.")
 
         removed_count = total_input - cut_index
         if removed_count == 0:
-            import logging
-            logging.getLogger(__name__).info(f"Cleanup: session {session_id} is already clean (total={total_input}).")
+            logger.info(f"Cleanup: session {session_id} is already clean (total={total_input}).")
             return 0
 
         # Gather the ObjectIds of the messages to delete
@@ -148,8 +147,7 @@ class AgentMemory:
         
         result = col.delete_many({"_id": {"$in": ids_to_delete}})
         
-        import logging
-        logging.getLogger(__name__).info(f"Cleanup: session {session_id} - removed {result.deleted_count} messages. New total: {cut_index}.")
+        logger.info(f"Cleanup: session {session_id} - removed {result.deleted_count} messages. New total: {cut_index}.")
         return result.deleted_count
 
     def log_query_analytics(self, session_id: str, query: str, metrics: list):

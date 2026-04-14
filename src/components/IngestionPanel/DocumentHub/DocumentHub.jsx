@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "../../../context/SessionContext";
 import "./DocumentHub.css";
 import { API_URL } from "../../../api";
@@ -40,7 +40,8 @@ const handleDownload = async () => {
 export default function DocumentHub() {
   const [uploadStatus, setUploadStatus] = useState("");
   const [sessionData, setSessionData] = useState(null);
-  const { sessionId, setSessionId, loadSession, ingestionProgress, setIngestionProgress, setActiveIngestionTab, sessionList } = useSession();
+  const { sessionId, setSessionId, setCurrentSummaries,
+    ingestionProgress, setIngestionProgress, setActiveIngestionTab, sessionList } = useSession();
 
   // Resume tracking if session already exists and is ingesting, and fetch session data
   useEffect(() => {
@@ -72,6 +73,26 @@ export default function DocumentHub() {
     }
 
   }, [sessionId]);
+
+  useEffect(() => {
+    if (ingestionProgress && ingestionProgress.phase === "complete") {
+      const fetchSessionMetadata = async () => {
+        try {
+          const res = await fetch(`${API_URL}/sessions/${sessionId}`);
+          if (res.ok) {
+            const data = await res.json();
+            setSessionData(data);
+            setCurrentSummaries(data.metadata)
+            setActiveIngestionTab("summaries")
+          }
+        } catch (err) {
+          console.error("Failed to fetch session data:", err);
+        }
+      };
+      fetchSessionMetadata();
+    }
+  }, [ingestionProgress]);
+
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -133,12 +154,12 @@ export default function DocumentHub() {
 
     eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      const prevProgress = ingestionProgress;
       setIngestionProgress(data);
 
-      // Refresh summaries if phase changes or extraction makes progress
-      if (data.phase === "complete" || (data.phase === "extraction" && data.current !== prevProgress?.current)) {
-        loadSession(id, true);
+      // Refresh once completed
+      if (data.phase === "complete") {
+        setSessionId(id);
+        setIngestionProgress(data);
       }
 
       if (data.phase === "complete" || data.phase === "failed") {

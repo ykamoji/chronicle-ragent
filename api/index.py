@@ -371,22 +371,22 @@ def get_analytics():
 
 @app.route("/sessions/<session_id>", methods=["GET", "DELETE"])
 def handle_session(session_id):
-    logger.info("Step 1")
+   
     if request.method == "GET":
         collection = mongo.get_sessions_collection()
-        logger.info("Step 2")
+        
         if collection is None:
             return jsonify({"error": "DB not connected"}), 503
-        logger.info("Step 3")
+        
         doc = collection.find_one({"session_id": session_id}, {"_id": 0})
         if not doc:
             return jsonify({"error": "Session not found"}), 404
-        logger.info("Step 4")
+        
         # Start background cache load
         thread = threading.Thread(target=cache_session_docs_background, args=(session_id,))
         thread.daemon = True
         thread.start()
-        logger.info("Step 5")
+        
         return jsonify(doc)
 
     elif request.method == "DELETE":

@@ -114,6 +114,8 @@ export function SessionProvider({ children }) {
         } else {
           setMessages([]);
         }
+
+          sessionsCacheRef.current[id] = { messages: parsedMsgs, summaries: data.metadata || [] };
       }
     } catch (err) {
       console.error("Failed to load session", err);

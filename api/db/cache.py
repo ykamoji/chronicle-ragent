@@ -1,6 +1,8 @@
 import threading
 import logging
-import numpy as np
+from dotenv import load_dotenv
+load_dotenv()
+from api.db.mongo import mongo
 
 logger = logging.getLogger(__name__)
 
@@ -46,3 +48,25 @@ class SessionCache:
 
 # Singleton instance
 session_cache = SessionCache()
+
+
+def cache_session_docs_background(session_id: str):
+    """Background task to load vector docs into cache."""
+    try:
+        vector_col = mongo.get_vector_collection()
+        if vector_col is None:
+            return
+            
+        # Skip if already cached
+        if session_cache.get_vector_docs(session_id) is not None:
+            return
+             
+        cursor = vector_col.find(
+            {"session_id": {"$in": [session_id]}},
+            {"embedding": 1, "text": 1, "chapter": 1, "parent_chapter_index": 1, "pov": 1, "_id": 0}
+        )
+        docs = list(cursor)
+        session_cache.set_vector_docs(session_id, docs)
+        logger.info(f"Background cache loaded {len(docs)} docs for session {session_id}")
+    except Exception as e:
+        logger.error(f"Failed to background cache session {session_id}: {e}")

@@ -44,6 +44,7 @@ export default function DocumentHub() {
 
   // Resume tracking if session already exists and is ingesting, and fetch session data
   useEffect(() => {
+
     if (sessionId) {
       const fetchSessionData = async () => {
         try {
@@ -112,8 +113,6 @@ export default function DocumentHub() {
     const response = await fetch("/book_5_arc_1.pdf");
     const blob = await response.blob();
 
-    console.log(blob)
-
     const file = new File([blob], "book_5_arc_1.pdf", {
       type: "application/pdf",
     });
@@ -154,7 +153,7 @@ export default function DocumentHub() {
     };
 
     eventSource.onerror = (err) => {
-      console.error("SSE Error:", err);
+      console.log("SSE Error:", err);
       eventSource.close();
     };
   };
@@ -165,9 +164,10 @@ export default function DocumentHub() {
       (phase === "extraction" && ingestionProgress?.phase === "embedding") ||
       ingestionProgress?.phase === "complete";
 
+    const current = ingestionProgress.current > 0 ? ingestionProgress.current - 1 : 0
     let percentage = 0;
     if (isActive && ingestionProgress.total > 0) {
-      percentage = Math.round((ingestionProgress.current / ingestionProgress.total) * 100);
+      percentage = Math.round((current / ingestionProgress.total) * 100);
     } else if (isCompleted) {
       percentage = 100;
     }
@@ -179,7 +179,7 @@ export default function DocumentHub() {
           <span className="stage-label">{label}</span>
           {isActive && (
             <span className="stage-count">
-              {ingestionProgress.current}/{ingestionProgress.total}
+              {current}/{ingestionProgress.total}
             </span>
           )}
         </div>
@@ -193,20 +193,17 @@ export default function DocumentHub() {
     );
   };
 
+  const isIngesting = ingestionProgress && ingestionProgress.phase !== "complete" && ingestionProgress.phase !== "failed";
+
   const currentSession = sessionList.find(session => session.session_id === sessionId)
   let knowledge_available = false
-  if (currentSession && currentSession.source_filename) {
+  if (currentSession && currentSession.source_filename && !isIngesting) {
     knowledge_available = true
   }
 
   return (
     <>
       <h2>Knowledge Hub</h2>
-      {!knowledge_available && (
-        <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "16px" }}>
-          Upload PDF or text files to build the agent&apos;s knowledge base.
-        </p>
-      )}
 
       {/* Current Document Display */}
       {sessionId && sessionData?.metadata && (
@@ -250,6 +247,9 @@ export default function DocumentHub() {
       {!sessionData?.metadata && !knowledge_available && <>
         {!ingestionProgress || ingestionProgress.phase === "complete" || ingestionProgress.phase === "failed" ? (
           <>
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "16px", marginTop: "16px" }}>
+              Upload PDF or text files to build the agent&apos;s knowledge base.
+            </p>
             <div
               className="file-drop-zone"
               onClick={() => document.getElementById("file-upload").click()}

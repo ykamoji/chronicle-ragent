@@ -4,8 +4,8 @@ from typing import List
 
 
 def clean_chapter_header(text: str) -> str:
-    pattern = r"^.*?\s*\(Chapter\s+(\d+)\).*"
-    return re.sub(pattern, r"Chapter \1", text)
+    pattern = r"(^.*?\s*)\(Chapter\s+(\d+)\).*"
+    return re.sub(pattern, r"Chapter \2, POV : \1", text)
 
 def extract_text_from_pdf(filepath: str) -> str:
     """Extracts all text from a PDF file."""
@@ -132,5 +132,6 @@ if __name__ == "__main__":
     print("\n")
     for ch in chapters:
         print(ch.split("\n\n")[0])
+        # print(hashlib.sha256(ch.encode('utf-8')).hexdigest())
 
     

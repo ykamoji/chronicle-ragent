@@ -61,6 +61,7 @@ export function SessionProvider({ children }) {
     }
 
     try {
+      console.log("Loading session", id);
       const [sessRes, msgRes] = await Promise.all([
         fetch(`${API_URL}/sessions/${id}`),
         fetch(`${API_URL}/messages/${id}`)
@@ -127,6 +128,7 @@ export function SessionProvider({ children }) {
     setCurrentSummaries([]);
     setIngestionProgress(null);
     setIsPanelExpanded(true);
+    if (activeIngestionTab != "document") setActiveIngestionTab("documents")
   }, [isPanelExpanded]);
 
   // Auto-sync local state to cache whenever it changes for the active session

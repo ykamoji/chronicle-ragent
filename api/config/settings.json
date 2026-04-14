@@ -40,7 +40,8 @@
             "name": "Gemma 4 31B",
             "model": "gemma-4-31b-it",
             "delay": 10,
-            "thinking": true
+            "thinking": true,
+            "default": true
         },
         {
             "name": "Gemma 4 26B",

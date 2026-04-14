@@ -93,8 +93,7 @@ class AgentMemory:
                 contents=prompt,
                 config=gtypes.GenerateContentConfig(
                     temperature=0.3,
-                    max_output_tokens=20,
-                    thinking_config=gtypes.ThinkingConfig(thinking_budget=0)
+                    max_output_tokens=20
                 )
             )
             chat_name = response.text.strip().strip('"').strip("'")[:80]  # trim safety cap

@@ -7,7 +7,7 @@ import { API_URL } from "../../../api";
 export default function DocumentHub() {
   const [uploadStatus, setUploadStatus] = useState("");
   const [sessionData, setSessionData] = useState(null);
-  const { sessionId, setSessionId, loadSession, ingestionProgress, setIngestionProgress, setActiveIngestionTab } = useSession();
+  const { sessionId, setSessionId, loadSession, ingestionProgress, setIngestionProgress, setActiveIngestionTab, sessionList } = useSession();
 
   // Resume tracking if session already exists and is ingesting, and fetch session data
   useEffect(() => {
@@ -76,12 +76,12 @@ export default function DocumentHub() {
   };
 
   const handleSampleUpload = async () => {
-    const response = await fetch("/mini_arc.pdf");
+    const response = await fetch("/book_5_arc_1.pdf");
     const blob = await response.blob();
 
     console.log(blob)
 
-    const file = new File([blob], "mini_arc.pdf", {
+    const file = new File([blob], "book_5_arc_1.pdf", {
       type: "application/pdf",
     });
 
@@ -95,14 +95,14 @@ export default function DocumentHub() {
   };
 
   const handleDownload = async () => {
-    const response = await fetch("/mini_arc.pdf");
+    const response = await fetch("/book_5_arc_1.pdf");
     const blob = await response.blob();
 
     const url = window.URL.createObjectURL(blob);
 
     const a = document.createElement("a");
     a.href = url;
-    a.download = "mini_arc.pdf";
+    a.download = "book_5_arc_1.pdf";
     document.body.appendChild(a);
     a.click();
 
@@ -191,12 +191,20 @@ export default function DocumentHub() {
     }
   };
 
+  const currentSession = sessionList.find(session => session.session_id === sessionId)
+  let knowledge_available = false
+  if (currentSession && currentSession.source_filename) {
+    knowledge_available = true
+  }
+
   return (
     <>
-      <h2>Document Hub</h2>
-      <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "16px" }}>
-        Upload PDF or text files to build the agent&apos;s knowledge base.
-      </p>
+      <h2>Knowledge Hub</h2>
+      {!knowledge_available && (
+        <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "16px" }}>
+          Upload PDF or text files to build the agent&apos;s knowledge base.
+        </p>
+      )}
 
       {/* Current Document Display */}
       {sessionId && sessionData?.metadata && (
@@ -205,6 +213,7 @@ export default function DocumentHub() {
           background: "rgba(0, 0, 0, 0.02)",
           border: "1px solid var(--panel-glass-border, rgba(0, 0, 0, 0.08))",
           borderRadius: "8px",
+          marginTop: "20px",
           marginBottom: "16px",
           display: "flex",
           alignItems: "center",
@@ -214,8 +223,8 @@ export default function DocumentHub() {
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
-              width="80"
-              height="80"
+              width="100"
+              height="100"
             >
               <path
                 d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"
@@ -236,7 +245,7 @@ export default function DocumentHub() {
         </div>
       )}
 
-      {!sessionData?.metadata && <>
+      {!sessionData?.metadata && !knowledge_available && <>
         {!ingestionProgress || ingestionProgress.phase === "complete" || ingestionProgress.phase === "failed" ? (
           <>
             <div
@@ -253,14 +262,13 @@ export default function DocumentHub() {
               <p>📄 Click to Upload Document</p>
               <span style={{ fontSize: "0.8rem" }}>Supports: PDF, TXT</span>
             </div>
-
-            <span style={{ textAlign: "center" }}>OR</span>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <div style={{ textAlign: "center", marginTop: "10px" }}>OR</div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "15px" }}>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
-                width="80"
-                height="80"
+                width="100"
+                height="100"
               >
                 <path
                   d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"

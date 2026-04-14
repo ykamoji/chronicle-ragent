@@ -190,7 +190,6 @@ export default function AnalyticsDashboard() {
 
   const responseTimeTrendData = processedToolData
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
-    .slice(-50)
     .map((d, idx) => ({
       idx,
       timestamp: new Date(d.timestamp).toLocaleDateString(),
@@ -514,7 +513,7 @@ export default function AnalyticsDashboard() {
                         height={80}
                         stroke="#64748b"
                       />
-                      <YAxis fontSize={12} stroke="#64748b" />
+                      <YAxis fontSize={12} stroke="#64748b" label={{ value: "Res Time", angle: -90, position: "insideLeft" }} />
                       <Tooltip contentStyle={{ background: 'rgba(255,255,255,0.95)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px' }} />
                       <Line
                         type="monotone"

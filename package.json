@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "flask-dev": "FLASK_DEBUG=1 && python3 -m flask --app api/index run -p 5000",
+    "flask-dev": "FLASK_DEBUG=1 python3 -m flask --app api/index run -p 5000 --no-reload",
     "next-dev": "next dev",
-    "dev": "concurrently \"pnpm run flask-dev\" \"pnpm run next-dev\"",
+    "dev": "concurrently -k --success=first \"pnpm run flask-dev\" \"pnpm run next-dev\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

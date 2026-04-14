@@ -6,7 +6,7 @@ import json
 import hashlib
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
-from api.agent.orchestrator import run_agent_stream
+from api.agent.orchestrator import run_agent_stream, interrupt_agent
 from api.agent.memory import memory
 from api.ingestion.parser import extract_text_from_pdf, chunk_text, chunk_by_chapter
 from api.ingestion.extractor import extract_metadata
@@ -145,6 +145,18 @@ def cleanup_failed_query():
     return jsonify({"removed": removed})
 
 
+@app.route("/query/stop", methods=["POST"])
+def stop_query_agent():
+    """Signals the agent to stop processing for the given session."""
+    data = request.get_json()
+    if not data or "session_id" not in data:
+        return jsonify({"error": "Missing 'session_id' field"}), 400
+
+    session_id = data["session_id"]
+    interrupt_agent(session_id)
+    return jsonify({"message": f"Interrupt signaled for session {session_id}"})
+
+
 @app.route("/ingest-progress/<session_id>", methods=["GET"])
 def ingest_progress(session_id):
     """Streams ingestion progress for a specific session."""
@@ -264,7 +276,7 @@ def process_file_background(text_content: str, session_id: str):
                         }
                     })
 
-                sub_chunks = chunk_text(chapter_text, target_tokens=500)
+                sub_chunks = chunk_text(chapter_text, target_tokens=800)
                 
                 for j, sub_chunk in enumerate(sub_chunks):
                     doc = {
@@ -414,7 +426,7 @@ def cache_session_docs_background(session_id: str):
              
         cursor = vector_col.find(
             {"session_id": {"$in": [session_id]}},
-            {"embedding": 1, "text": 1, "chapter": 1, "_id": 0}
+            {"embedding": 1, "text": 1, "chapter": 1, "parent_chapter_index": 1, "_id": 0}
         )
         docs = list(cursor)
         session_cache.set_vector_docs(session_id, docs)

@@ -19,7 +19,7 @@
             "thinking": true
         },
         {
-            "name": "Gemini 3.1 Flash Preview",
+            "name": "Gemini 3 Flash Preview",
             "model": "gemini-3-flash-preview",
             "delay": 30,
             "thinking": true

@@ -9,6 +9,14 @@ from api.agent.tools import TOOLS
 from api.agent.memory import memory
 from api.config.settings import app_settings
 
+# Global set to track session IDs that should be interrupted
+active_interrupts = set()
+
+def interrupt_agent(session_id: str):
+    """Signals that the agent run for the given session should be stopped."""
+    active_interrupts.add(session_id)
+    logger.info(f"Interrupt signaled for session: {session_id}")
+
 logger = logging.getLogger(__name__)
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -113,6 +121,17 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
         current_prompt = prompt
 
         for step in range(max_steps):
+            # Check for interrupt signal
+            if session_id in active_interrupts:
+                active_interrupts.remove(session_id)
+                logger.info(f"Agent run interrupted for session: {session_id}")
+                yield json.dumps({
+                    "type": "error",
+                    "content": "Interrupted by user.",
+                    "time": datetime.now().isoformat()
+                })
+                return
+
             # Call LLM
             try:
                 response = client.models.generate_content(

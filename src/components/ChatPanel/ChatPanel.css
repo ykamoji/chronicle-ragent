@@ -64,13 +64,27 @@
   /*border: 1px solid var(--panel-glass-border);*/
 }
 
-/* Chat Input */
 .chat-input-area {
   padding: 16px;
   display: flex;
   gap: 12px;
   border-top: 1px solid var(--panel-glass-border);
 }
+
+.chat-input-area button.stop-btn {
+  /* background: #f3f3f3; */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-input-area .stop-icon {
+  width: 16px;
+  height: 16px;
+  background-color: white;
+  border-radius: 2px;
+}
+
 
 .chat-input-area input {
   flex: 1;

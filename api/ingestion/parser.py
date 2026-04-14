@@ -6,10 +6,19 @@ from typing import List
 def extract_text_from_pdf(filepath: str) -> str:
     """Extracts all text from a PDF file."""
     doc = fitz.open(filepath)
-    text = ""
+    full_text = []
+    
     for page in doc:
-        text += page.get_text() + "\n"
-    return text
+        # Get text grouped by blocks (paragraphs)
+        blocks = page.get_text("blocks")
+        
+        for b in blocks:
+            # b[4] is the text content of the block
+            block_text = b[4].replace("\n", " ").strip()
+            if block_text:
+                full_text.append(block_text)
+                
+    return "\n\n".join(full_text)
 
 def split_units(paragraph: str) -> List[str]:
     return re.split(r'(?<=[\"”?!\.])\s+', paragraph)
@@ -109,3 +118,11 @@ def chunk_by_chapter(text: str) -> List[str]:
         return chunk_text(text, target_tokens=15000)
 
     return chapters
+
+if __name__ == "__main__":
+    text = extract_text_from_pdf("public/book_5_arc_1.pdf")
+    chapters = chunk_by_chapter(text)
+    print(len(chapters))
+    print(chapters[0])
+
+    

@@ -96,6 +96,32 @@ export default function ChatPanel() {
     setIsPanelExpanded, fetchSessions
   } = useSession();
 
+  const abortControllerRef = useRef(null);
+
+  const handleStop = async () => {
+    if (!sessionId) return;
+
+    // 1. Signal backend to stop
+    try {
+      await fetch(`${API_URL}/query/stop`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+    } catch (e) {
+      console.warn("Stop signal failed:", e);
+    }
+
+    // 2. Abort frontend request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort("User stopped generation");
+    }
+
+    // 3. Cleanup and UI state
+    setIsLoading(false);
+    await callCleanup(sessionId);
+  };
+
   const currentSessionIdRef = useRef(sessionId);
   useEffect(() => {
     currentSessionIdRef.current = sessionId;
@@ -186,6 +212,9 @@ export default function ChatPanel() {
 
     let currentSessionId = sessionId;
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const payload = { query: userQuery };
       if (sessionId) payload.session_id = sessionId;
@@ -194,6 +223,7 @@ export default function ChatPanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
 
       if (!res.ok) throw new Error("API request failed");
@@ -314,7 +344,7 @@ export default function ChatPanel() {
       }
 
     } catch (err) {
-      console.error(err);
+      console.log("Error ", err);
       await callCleanup(currentSessionId);
     } finally {
       setIsLoading(false);
@@ -513,9 +543,15 @@ export default function ChatPanel() {
           onChange={(e) => setQuery(e.target.value)}
           disabled={isLoading || isSessionLoading}
         />
-        <button type="submit" disabled={isLoading || isSessionLoading || !query.trim()} style={{ background: isLoading ? 'gray' : '#000' }}>
-          Ask
-        </button>
+        {isLoading ? (
+          <button type="button" className="stop-btn" onClick={handleStop} >
+            <span className="stop-icon"></span>
+          </button>
+        ) : (
+          <button type="submit" disabled={isSessionLoading}>
+            Ask
+          </button>
+        )}
       </form>
     </main>
   );

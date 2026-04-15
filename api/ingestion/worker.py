@@ -4,14 +4,11 @@ load_dotenv()
 import logging
 import time
 import hashlib
-from tqdm import tqdm
 from api.ingestion.extractor import extract_metadata
 from api.ingestion.embedder import get_embedding
 from api.ingestion.parser import extract_text_from_pdf, chunk_text, chunk_by_chapter
 from api.db.mongo import mongo
-from api.agent.memory import memory
 from api.config.settings import app_settings
-from api.db.cache import session_cache
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +40,10 @@ def process_file_background(text_content: str, session_id: str):
 
         chapter_hashes = []
 
+        embeddings_count = 0
+
         # Phase 1: Metadata Extraction
-        for i, chapter_text in enumerate(tqdm(chapters, desc="Extracting Metadata")):
+        for i, chapter_text in enumerate(chapters):
             # Update current progress
             sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.current": i + 1}})
 
@@ -54,8 +53,8 @@ def process_file_background(text_content: str, session_id: str):
             existing = vector_col.find_one({"chapter_hash": c_hash})
             if existing:
                 logger.info(f"Chapter {i+1} already in DB. Associating with current session.")
-                vector_col.update_many({"chapter_hash": c_hash}, {"$addToSet": {"session_id": session_id}})
-                
+                res = vector_col.update_many({"chapter_hash": c_hash}, {"$addToSet": {"session_id": session_id}})
+                embeddings_count += res.modified_count
                 # Copy metadata from existing session if available
                 chapter_name = existing.get("chapter")
                 existing_sessions = existing.get("session_id", [])
@@ -85,6 +84,8 @@ def process_file_background(text_content: str, session_id: str):
                     if not success:
                         cleanup_session_data(session_id, vector_col, sess_col)
                         raise Exception(f"Metadata extraction failed for chapter {i+1} after 3 attempts.")
+                    
+                    logger.info(f"Metadata extracted for chapter {i+1}")
 
                     chapter_summary = metadata.get("summary", "")
                     if chapter_summary:
@@ -117,6 +118,8 @@ def process_file_background(text_content: str, session_id: str):
                     raise Exception(f"Metadata extraction failed for chapter {i+1} after 3 attempts.")
 
                 # logger.info(f"Metadata extracted: {metadata}")
+
+                logger.info(f"Metadata extracted for chapter {i+1}")
                 
                 chapter_summary = metadata.get("summary", "")
                 if chapter_summary:
@@ -153,15 +156,20 @@ def process_file_background(text_content: str, session_id: str):
         logger.info("Phase 2: Generating embeddings...")
         missing_docs = list(vector_col.find({"chapter_hash": {"$in": chapter_hashes}, "embedding": None}))
         total_embeddings = len(missing_docs)
-        logger.info(f"Found {total_embeddings} chunks needing embeddings.")
         
         # Switch to embedding phase
-        sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress": {"phase": "embedding", "current": 0, "total": total_embeddings}}})
 
         if total_embeddings == 0:
-             sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.phase": "complete"}})
+            sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress": {"phase": "embedding", "current": 0, "total": embeddings_count}}})
+            for idx in range(embeddings_count):
+                sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.current": idx + 1}})
+                # logger.info(f"Embedding generated for chunk {idx+1}")
+                time.sleep(30)
         else:
-            for idx, doc in enumerate(tqdm(missing_docs, desc="Generating Embeddings")):
+            sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress": {"phase": "embedding", "current": 0, "total": total_embeddings}}})
+            logger.info(f"Found {total_embeddings} chunks needing embeddings.")
+
+            for idx, doc in enumerate(missing_docs):
                 # Update current progress
                 sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.current": idx + 1}})
 
@@ -183,15 +191,14 @@ def process_file_background(text_content: str, session_id: str):
                 
                 if not success:
                     logger.error(f"Failed to generate embedding for doc {doc_id} after 3 attempts.")
+
+                logger.info(f"Embedding generated for chunk {idx+1}")
                 
                 time.sleep(5) # Reduced for better demo
             
         # Finalize progress
         sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.phase": "complete"}})
-
-        # Invalidate cache so the next query pulls fresh data from MongoDB
-        # session_cache.invalidate(session_id)
-        logger.info("Ingestion complete. Cache invalidated.")
+        logger.info("Ingestion complete.")
     except Exception as e:
         logger.error(f"Ingestion pipeline failed: {e}")
         sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.phase": "failed", "error": str(e)}})

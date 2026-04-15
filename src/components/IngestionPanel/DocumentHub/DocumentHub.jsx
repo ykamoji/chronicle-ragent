@@ -39,46 +39,33 @@ const handleDownload = async () => {
 
 export default function DocumentHub() {
   const [uploadStatus, setUploadStatus] = useState("");
-  const [sessionData, setSessionData] = useState(null);
   const { sessionId, setSessionId, setCurrentSummaries,
-    ingestionProgress, setIngestionProgress, setActiveIngestionTab, sessionList } = useSession();
+    ingestionProgress, setIngestionProgress, setActiveIngestionTab, sessionList, setSessionList, sessionData, setSessionData } = useSession();
   const ingestion_completed = useRef(false)
+
+  const resumeIngestion = useRef(false)
 
   // Resume tracking if session already exists and is ingesting, and fetch session data
   useEffect(() => {
     if (sessionId) {
-      const fetchSessionData = async () => {
-        try {
-          const res = await fetch(`${API_URL}/sessions/${sessionId}`);
-          if (res.ok) {
-            const data = await res.json();
-            setSessionData(data);
-            if (data.ingestion_progress &&
-              data.ingestion_progress.phase !== "complete" &&
-              data.ingestion_progress.phase !== "failed") {
-              setIngestionProgress(data.ingestion_progress);
-              startProgressStream(sessionId);
-            }
-          }
-        } catch (err) {
-          console.error("Failed to fetch session data:", err);
-        }
-      };
-
-      fetchSessionData();
+      if (ingestionProgress &&
+        ingestionProgress.phase !== "complete" &&
+        ingestionProgress.phase !== "failed") {
+        resumeIngestion.current = true
+      }
+      else {
+        resumeIngestion.current = false
+      }
     }
-
     if (sessionId === null && sessionData) {
       setSessionData(null)
     }
 
-    ingestion_completed.current = false
-
   }, [sessionId]);
 
+
   useEffect(() => {
-    if (!ingestion_completed.current && ingestionProgress && ingestionProgress.phase === "complete") {
-      ingestion_completed.current = true
+    if (ingestion_completed.current && ingestionProgress && ingestionProgress.phase === "complete") {
       const fetchSessionMetadata = async () => {
         try {
           const res = await fetch(`${API_URL}/sessions/${sessionId}`);
@@ -87,13 +74,20 @@ export default function DocumentHub() {
             setSessionData(data);
             setCurrentSummaries(data.metadata)
             setActiveIngestionTab("summaries")
+            ingestion_completed.current = false
           }
         } catch (err) {
           console.error("Failed to fetch session data:", err);
         }
       };
-      fetchSessionMetadata();
+      fetchSessionMetadata()
     }
+
+    if (!resumeIngestion.current && sessionId && ingestionProgress && ingestionProgress.phase !== "complete") {
+      resumeIngestion.current = true
+      startProgressStream(sessionId);
+    }
+
   }, [ingestionProgress]);
 
 
@@ -123,6 +117,7 @@ export default function DocumentHub() {
 
       if (!sessionId && data.session_id) {
         setSessionId(data.session_id);
+        setSessionList(prev => [{ session_id: data.session_id, chat_name: "", source_filename: "" }, ...prev])
       }
 
       setUploadStatus(`Ingesting ${file.name}...`);
@@ -161,6 +156,7 @@ export default function DocumentHub() {
 
       // Refresh once completed
       if (data.phase === "complete") {
+        ingestion_completed.current = true
         setSessionId(id);
         setIngestionProgress(data);
       }
@@ -225,12 +221,14 @@ export default function DocumentHub() {
     knowledge_available = true
   }
 
+  const show_live_updated = (!sessionData?.metadata || (ingestionProgress && ingestionProgress.phase !== "complete"))
+
   return (
     <>
       <h2>Knowledge Hub</h2>
 
       {/* Current Document Display */}
-      {sessionId && sessionData?.metadata && (
+      {sessionId && !show_live_updated && (
         <div style={{
           padding: "12px 16px",
           background: "rgba(0, 0, 0, 0.02)",
@@ -259,16 +257,16 @@ export default function DocumentHub() {
           </span>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: "13px", fontWeight: "500", color: "var(--text-primary)" }}>
-              {sessionData.source_filename || sessionData.chat_name || `Session ${sessionId.slice(0, 8)}`}
+              {sessionData?.source_filename || sessionData?.chat_name || `Session ${sessionId.slice(0, 8)}`}
             </div>
             <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "2px" }}>
-              Uploaded: {formatDate(sessionData.upload_time)}
+              Uploaded: {formatDate(sessionData?.upload_time)}
             </div>
           </div>
         </div>
       )}
 
-      {!sessionData?.metadata && !knowledge_available && <>
+      {show_live_updated && !knowledge_available && <>
         {!ingestionProgress || ingestionProgress.phase === "complete" || ingestionProgress.phase === "failed" ? (
           <>
             <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "16px", marginTop: "16px" }}>

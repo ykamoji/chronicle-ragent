@@ -23,6 +23,7 @@ export function SessionProvider({ children }) {
   const [activeIngestionTab, setActiveIngestionTab] = useState("documents");
   const [highlightChapter, setHighlightChapter] = useState(null);
   const [sessionList, setSessionList] = useState([]);
+  const [sessionData, setSessionData] = useState(null);
 
   const fetchSessions = useCallback(async () => {
     try {
@@ -43,6 +44,8 @@ export function SessionProvider({ children }) {
       setSessionId(id);
       setMessages(cached.messages || []);
       setCurrentSummaries(cached.summaries || []);
+      setSessionData(cached.data || null);
+      setIngestionProgress(cached.ingestionProgress || null);
       return;
     }
 
@@ -71,6 +74,7 @@ export function SessionProvider({ children }) {
           const data = await sessRes.json();
           setCurrentSummaries(data.metadata || []);
           setIngestionProgress(data.ingestion_progress || null);
+          setSessionData(data)
         }
       }
 
@@ -142,11 +146,13 @@ export function SessionProvider({ children }) {
         ...prev,
         [sessionId]: {
           messages: messages,
-          summaries: currentSummaries
+          summaries: currentSummaries,
+          data: sessionData,
+          ingestionProgress: ingestionProgress,
         }
       }));
     }
-  }, [messages, currentSummaries, sessionId]);
+  }, [messages, currentSummaries, sessionId, sessionData, ingestionProgress]);
 
   return (
     <SessionContext.Provider
@@ -173,6 +179,8 @@ export function SessionProvider({ children }) {
         sessionList,
         setSessionList,
         fetchSessions,
+        sessionData,
+        setSessionData
       }}
     >
       {children}

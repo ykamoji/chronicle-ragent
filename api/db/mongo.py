@@ -26,7 +26,7 @@ class MongoDBClient:
                 mongo_uri, 
                 maxPoolSize=50,
                 minPoolSize=5,
-                serverSelectionTimeoutMS=5000
+                serverSelectionTimeoutMS=30000
             )
             self.db: Database = self.client[mongo_db_name]
             self.vector: Collection = self.db['vector']

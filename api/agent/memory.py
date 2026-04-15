@@ -64,42 +64,18 @@ class AgentMemory:
         }
         col.insert_one(doc)
 
-    def set_chat_name(self, session_id: str, agent_answer: str) -> str | None:
-        """Generates a short chat title from the first agent answer and stores it in the session document.
-
-        Only sets the name once — if a chat_name already exists it is left unchanged.
-        Uses a minimal, non-thinking Gemini call to keep latency low.
-        """
-        col = mongo.get_sessions_collection()
-        if col is None:
-            return None
-
-        # Only name sessions that don't have one yet
-        doc = col.find_one({"session_id": session_id}, {"chat_name": 1})
-        if not doc or doc.get("chat_name"):
-            return None
-
-        logger.info("Creating chat name")
+    def set_chat_name(self, session_id: str, chat_name: str) -> str | None:
         try:
-            api_key = os.getenv("GEMINI_API_KEY")
-            if not api_key:
+            col = mongo.get_sessions_collection()
+            if col is None:
                 return None
 
-            client = genai.Client(api_key=api_key)
-            prompt = (
-                f"Generate a concise chat title of 4-6 words that captures the main topic of the content."
-                f"Output ONLY the title — no punctuation, no quotes.\n\n"
-                f"Content: {agent_answer}"
-            )
-            response = client.models.generate_content(
-                model=app_settings.get_model(),
-                contents=prompt,
-                config=gtypes.GenerateContentConfig(
-                    temperature=0.3,
-                    max_output_tokens=20,
-                )
-            )
-            chat_name = response.text.strip().strip('"').strip("'")[:80]  # trim safety cap
+            # Only name sessions that don't have one yet
+            doc = col.find_one({"session_id": session_id}, {"chat_name": 1})
+            
+            if not doc or doc.get("chat_name"):
+                return None
+            
             col.update_one(
                 {"session_id": session_id},
                 {"$set": {"chat_name": chat_name}}

@@ -22,12 +22,23 @@ class MongoDBClient:
             return
             
         try:
-            self.client = MongoClient(mongo_uri)
+            self.client = MongoClient(
+                mongo_uri, 
+                maxPoolSize=50,
+                minPoolSize=5,
+                serverSelectionTimeoutMS=5000
+            )
             self.db: Database = self.client[mongo_db_name]
             self.vector: Collection = self.db['vector']
             self.sessions: Collection = self.db["sessions"]
             self.messages: Collection = self.db["messages"]
             self.analytics: Collection = self.db["analytics"]
+
+            try:
+                self.db.command("ping")
+            except Exception as e:
+                raise RuntimeError(f"MongoDB connection failed: {e}")
+                
             logger.info("Successfully connected to MongoDB")
         except Exception as e:
             logger.error(f"Failed to connect to MongoDB: {e}")

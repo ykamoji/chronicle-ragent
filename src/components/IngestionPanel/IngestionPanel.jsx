@@ -73,7 +73,7 @@ export default function IngestionPanel() {
             </div>
 
             <div hidden={activeIngestionTab !== "summaries"}>
-              {hasSummaries ? (
+              {!isIngesting ? (
                 <ChapterSummaries currentSummaries={currentSummaries} />
               ) : (
                 <div className="empty-state">

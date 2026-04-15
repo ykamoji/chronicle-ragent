@@ -42,10 +42,10 @@ export default function DocumentHub() {
   const [sessionData, setSessionData] = useState(null);
   const { sessionId, setSessionId, setCurrentSummaries,
     ingestionProgress, setIngestionProgress, setActiveIngestionTab, sessionList } = useSession();
+  const ingestion_completed = useRef(false)
 
   // Resume tracking if session already exists and is ingesting, and fetch session data
   useEffect(() => {
-
     if (sessionId) {
       const fetchSessionData = async () => {
         try {
@@ -72,10 +72,13 @@ export default function DocumentHub() {
       setSessionData(null)
     }
 
+    ingestion_completed.current = false
+
   }, [sessionId]);
 
   useEffect(() => {
-    if (ingestionProgress && ingestionProgress.phase === "complete") {
+    if (!ingestion_completed.current && ingestionProgress && ingestionProgress.phase === "complete") {
+      ingestion_completed.current = true
       const fetchSessionMetadata = async () => {
         try {
           const res = await fetch(`${API_URL}/sessions/${sessionId}`);

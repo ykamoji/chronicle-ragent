@@ -46,6 +46,8 @@ Rules:
 2. The Action must be strictly formatted as tool_name[arguments].
 3. DO NOT output an Observation yourself. Stop generating after the Action. The system will provide the Observation.
 4. When you have enough information, use 'finish[your answer]' to return the answer to the user.
+5. FIRST QUERY RULE: If this is the FIRST message of the conversation, the 'finish' action must include a concise 4-6 word title followed by the answer, separated by a double pipe (||). 
+   Example: Action: finish[The Secret of Ravenswood || The murderer was the gardener.]
 """
 
 config = types.GenerateContentConfig(
@@ -219,27 +221,33 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                 total_time = time.time() - start_time
                 model_name = app_settings.get_model_info().get("name", "Unknown Model")
 
-                memory.add_message(session_id, "Agent", tool_arg, is_hidden=False, model_name=model_name, total_time=total_time)
+                chat_name = None
+                agent_answer = tool_arg
+                if "||" in tool_arg:
+                    chat_name, agent_answer = tool_arg.split("||", 1)
+
+                if chat_name:
+                    chat_name = chat_name.strip()
+                    # Generate a chat name from the final response (in-stream)
+                    memory.set_chat_name(session_id, chat_name)
+
+                    yield json.dumps({
+                        "type": "chat_name",
+                        "chat_name": chat_name,
+                        "session_id": session_id,
+                        "time": datetime.now(timezone.utc).isoformat()
+                    })
+
+                memory.add_message(session_id, "Agent", agent_answer, is_hidden=False, model_name=model_name, total_time=total_time)
 
                 yield json.dumps({
                     "type": "answer",
-                    "content": tool_arg,
+                    "content": agent_answer,
                     "session_id": session_id,
                     "model_name": model_name,
                     "total_time": round(total_time, 2),
                     "time": datetime.now(timezone.utc).isoformat()
-                })
-
-                # Generate a chat name from the final response (in-stream)
-                new_chat_name = memory.set_chat_name(session_id, tool_arg)
-                
-                if new_chat_name:
-                    yield json.dumps({
-                        "type": "chat_name",
-                        "chat_name": new_chat_name,
-                        "session_id": session_id,
-                        "time": datetime.now(timezone.utc).isoformat()
-                    })
+                })                   
                 
                 # Flush analytics data
                 memory.log_query_analytics(session_id, query, query_analytics)

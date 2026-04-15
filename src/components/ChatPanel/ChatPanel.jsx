@@ -94,12 +94,15 @@ export default function ChatPanel() {
   const liveThoughtsRef = useRef(null);
   const {
     sessionId, setSessionId, messages, currentSummaries,
-    setMessages, isSessionLoading, loadSession,
+    setMessages, isSessionLoading, loadSession, sessionList, setSessionList,
     setActiveIngestionTab, setHighlightChapter, setReferenceText,
-    setIsPanelExpanded, fetchSessions
+    setIsPanelExpanded
   } = useSession();
 
   const abortControllerRef = useRef(null);
+
+  const agentAnswerRef = useRef(false);
+  const agentChatRef = useRef(sessionList.find(s => s.session_id === sessionId)?.chat_name)
 
   const handleStop = async () => {
     if (!sessionId) return;
@@ -297,8 +300,7 @@ export default function ChatPanel() {
                 break;
 
               case "chat_name":
-                // Session title is now set in DB, refresh sidebar list
-                await fetchSessions();
+                agentChatRef.current = event.chat_name
                 break;
 
               case "error":
@@ -337,9 +339,7 @@ export default function ChatPanel() {
             ...prev,
             { role: "agent", content: finalAnswer, timestamp: new Date().toLocaleString("en-US", { timeZone: LOCAL_TIMEZONE }), steps: currentSteps, model_name: responseModel, total_time: responseTime },
           ]);
-          if (currentSessionId) {
-            await loadSession(currentSessionId, true);
-          }
+          agentAnswerRef.current = true
         }
       } else {
         // Did not finish — ensure cleanup
@@ -353,6 +353,25 @@ export default function ChatPanel() {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+
+    if (!isLoading && agentAnswerRef.current && sessionId) {
+      const task = async () => await loadSession(sessionId, true);
+      task()
+      if (agentChatRef.current !== null) {
+        setSessionList(prev =>
+          prev.map(s =>
+            s.session_id === sessionId
+              ? { ...s, chat_name: agentChatRef.current }
+              : s
+          )
+        );
+      }
+
+      agentAnswerRef.current = false
+    }
+  }, [isLoading])
 
   // const scrollToBottom = () => {
   //   if (liveThoughtsRef.current) {
@@ -469,7 +488,7 @@ export default function ChatPanel() {
               <div key={i} className={`agent-step ${step.type}`}>
                 {step.type === "thought" && (
                   <div>
-                    <span className="step-text">{<ReactMarkdown>{step.content}</ReactMarkdown> || "Thinking"}</span>
+                    <span className="step-text">{step.content || "Thinking"}</span>
                     {renderStepAction(step.action)}
                     <div style={{ opacity: 0.7 }}>{formatTimeWithSeconds(step.time)}</div>
                   </div>

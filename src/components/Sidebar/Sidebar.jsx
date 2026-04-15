@@ -43,9 +43,9 @@ export default function Sidebar() {
     setActiveMenuId(null);
   };
 
-  useEffect(() => {
-    fetchSessions();
-  }, [fetchSessions]);
+  // useEffect(() => {
+  //   fetchSessions();
+  // }, [fetchSessions]);
 
   // Re-fetch session list ONLY when a new session is originated
   useEffect(() => {

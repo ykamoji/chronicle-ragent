@@ -80,6 +80,10 @@ def handle_settings():
         val = data["delayOverride"]
         app_settings.set_delay_override(val if val is not None and val != "" else None)
 
+    if "embedder" in data and isinstance(data["embedder"], dict):
+        if "parallel" in data["embedder"]:
+            app_settings.set_embedder_parallel(data["embedder"]["parallel"])
+
     return jsonify(app_settings.to_dict())
 
 
@@ -209,7 +213,6 @@ def ingest_document():
 
     # Start ingestion in a daemon thread so it runs in background
     thread = threading.Thread(target=start_ingession, args=(temp_path, raw_text, session_id, source_filename))
-    thread.daemon = True
     thread.start()
 
     return jsonify({"message": "Document accepted. Ingestion running in the background.", "session_id": session_id})

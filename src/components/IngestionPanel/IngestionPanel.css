@@ -45,16 +45,22 @@
   font-weight: 600;
   padding: 6px 12px;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 0;
   transition: all 0.2s ease;
   position: relative;
   box-shadow: none;
 }
 
 .tab-item:hover:not(:disabled) {
-  background: rgba(99, 102, 241, 0.06);
+  background: rgba(99, 102, 241, 0.6);
+  color: #ffffff;
   transform: none;
   box-shadow: none;
+}
+
+.tab-item.active:hover {
+  background: var(--accent-cyan);
+  color: #ffffff;
 }
 
 .tab-item.active {

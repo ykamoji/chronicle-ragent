@@ -68,6 +68,11 @@ export default function SettingsPanel({ isCollapsed }) {
     }
   };
 
+  const handleToggleParallel = (e) => {
+    const enabled = e.target.checked;
+    updateSettings({ embedder: { parallel: enabled } });
+  };
+
   const handleDummyAction = (label) => {
     alert(`${label} — coming soon!`);
   };
@@ -146,6 +151,24 @@ export default function SettingsPanel({ isCollapsed }) {
             </div>
             <div className="delay-hint">
               Effective: {effectiveDelay}s — used between orchestrator steps &amp; ingestion calls.
+            </div>
+
+            <div className="settings-divider" />
+
+            <div className="settings-section-label">Embedder</div>
+            <div className="toggle-row">
+              <span className="toggle-label">Parallel Embedding</span>
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={settings?.embedder?.parallel ?? true}
+                  onChange={handleToggleParallel}
+                />
+                <span className="slider" />
+              </label>
+            </div>
+            <div className="delay-hint">
+              Speeds up ingestion by processing chunks in parallel.
             </div>
 
             <div className="settings-divider" />

@@ -1,3 +1,4 @@
+from api.ingestion.embedExec import embed_missing_docs_parallel
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -18,6 +19,37 @@ def cleanup_session_data(session_id, vector_col, sess_col):
     sess_col.delete_one({"session_id": session_id})
     vector_col.update_many({"session_id": session_id}, {"$pull": {"session_id": session_id}})
 
+
+def sequence_embed_docs(missing_docs, session_id, sess_col, vector_col):
+
+    logger.info(f"Starting sequence embedding for {len(missing_docs)} documents...")
+
+    for idx, doc in enumerate(missing_docs):
+        # Update current progress
+        sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.current": idx + 1}})
+
+        doc_id = doc["_id"]
+        text_to_embed = doc["text"]
+        success = False
+        text_to_embed = f"[{doc['chapter']} | POV : {doc['pov']}] " + text_to_embed
+        
+        logger.info(f"Embedding {text_to_embed[:100]}...")
+        for attempt in range(3):
+            try:
+                emb = get_embedding(text_to_embed)
+                vector_col.update_one({"_id": doc_id}, {"$set": {"embedding": emb}})
+                success = True
+                break
+            except Exception as e:
+                logger.warning(f"Embedding failed (Attempt {attempt+1}/3) for doc {doc_id}: {e}")
+                time.sleep(2)
+        
+        if not success:
+            logger.error(f"Failed to generate embedding for doc {doc_id} after 3 attempts.")
+
+        logger.info(f"Embedding generated for chunk {idx+1}")
+        
+        time.sleep(5) # Reduced for better demo
 
 def process_file_background(text_content: str, session_id: str):
     """Background task to chunk, embed, and store document segments."""
@@ -133,6 +165,9 @@ def process_file_background(text_content: str, session_id: str):
                             }
                         }
                     })
+                
+                ## Removing the cleaned header and keeping text only.
+                chapter_text = "\n\n".join(chapter_text.split("\n\n")[1:])
 
                 sub_chunks = chunk_text(chapter_text, target_tokens=800)
                 
@@ -163,38 +198,19 @@ def process_file_background(text_content: str, session_id: str):
             sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress": {"phase": "embedding", "current": 0, "total": embeddings_count}}})
             for idx in range(embeddings_count):
                 sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.current": idx + 1}})
-                # logger.info(f"Embedding generated for chunk {idx+1}")
-                time.sleep(30)
+                logger.info(f"Embedding generated for chunk {idx+1}")
+                # time.sleep(30)
         else:
             sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress": {"phase": "embedding", "current": 0, "total": total_embeddings}}})
             logger.info(f"Found {total_embeddings} chunks needing embeddings.")
 
-            for idx, doc in enumerate(missing_docs):
-                # Update current progress
-                sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.current": idx + 1}})
-
-                doc_id = doc["_id"]
-                text_to_embed = doc["text"]
-                success = False
-                text_to_embed = f"[{doc['chapter']} | POV : {doc['pov']}] " + text_to_embed
-                
-                logger.info(f"Embedding {text_to_embed[:100]}...")
-                for attempt in range(3):
-                    try:
-                        emb = get_embedding(text_to_embed)
-                        vector_col.update_one({"_id": doc_id}, {"$set": {"embedding": emb}})
-                        success = True
-                        break
-                    except Exception as e:
-                        logger.warning(f"Embedding failed (Attempt {attempt+1}/3) for doc {doc_id}: {e}")
-                        time.sleep(2)
-                
-                if not success:
-                    logger.error(f"Failed to generate embedding for doc {doc_id} after 3 attempts.")
-
-                logger.info(f"Embedding generated for chunk {idx+1}")
-                
-                time.sleep(5) # Reduced for better demo
+            # Choose embedding strategy based on settings
+            if app_settings.get_embedder_parallel():
+                logger.info("Using Parallel Embedding Execution.")
+                embed_missing_docs_parallel(missing_docs, session_id, sess_col, vector_col, logger)
+            else:
+                logger.info("Using Sequential Embedding Execution.")
+                sequence_embed_docs(missing_docs, session_id, sess_col, vector_col)
             
         # Finalize progress
         sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.phase": "complete"}})
@@ -230,7 +246,6 @@ def start_ingession(temp_path, raw_text, session_id, source_filename):
                     text_to_process = f.read()
             else:
                 logger.error("Unsupported file format. Use .pdf or .txt")
-            os.remove(temp_path)
         
         if raw_text:
             text_to_process += "\n\n" + raw_text
@@ -240,8 +255,9 @@ def start_ingession(temp_path, raw_text, session_id, source_filename):
         if not text_to_process:
             return logger.error("Extracted text is empty.")
 
-
         process_file_background(text_to_process, session_id)
+
+        os.remove(temp_path)
 
     except Exception as e:
         logger.error(f"Ingestion pipeline failed: {e}")

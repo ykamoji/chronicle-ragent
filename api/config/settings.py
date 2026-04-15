@@ -14,6 +14,7 @@ class AppSettings:
         self._model_list = []
         self._active_model = None  # dict with name, model, delay
         self._delay_override = None  # int | None
+        self._embedder = {"parallel": True}
         self._load()
 
     # ── Bootstrap ──────────────────────────────────────────────────────
@@ -24,6 +25,7 @@ class AppSettings:
             with open(_SETTINGS_PATH, "r") as f:
                 data = json.load(f)
             self._model_list = data.get("modelList", [])
+            self._embedder = data.get("embedder", {"parallel": True})
         except Exception as e:
             logger.error(f"Failed to load settings.json: {e}")
             self._model_list = []
@@ -68,6 +70,10 @@ class AppSettings:
             return self._active_model.get("thinking", False)
         return False
 
+    def get_embedder_parallel(self) -> bool:
+        """Returns whether parallel embedding is enabled."""
+        return self._embedder.get("parallel", True)
+
     # ── Setters ────────────────────────────────────────────────────────
 
     def set_model(self, model_id: str) -> bool:
@@ -89,14 +95,35 @@ class AppSettings:
         else:
             self._delay_override = int(value)
             logger.info(f"Delay override set to {self._delay_override}s")
+        self._save()
+
+    def set_embedder_parallel(self, enabled: bool) -> None:
+        """Sets whether parallel embedding is enabled."""
+        self._embedder["parallel"] = bool(enabled)
+        logger.info(f"Embedder parallel set to {self._embedder['parallel']}")
+        self._save()
 
     # ── Serialisation ──────────────────────────────────────────────────
+
+    def _save(self):
+        """Save current configuration to settings.json."""
+        try:
+            with open(_SETTINGS_PATH, "r") as f:
+                data = json.load(f)
+            
+            data["modelList"] = self._model_list
+            data["embedder"] = self._embedder           
+            with open(_SETTINGS_PATH, "w") as f:
+                json.dump(data, f, indent=4)
+        except Exception as e:
+            logger.error(f"Failed to save settings.json: {e}")
 
     def to_dict(self) -> dict:
         return {
             "modelList": self._model_list,
             "activeModel": self._active_model,
-            "delayOverride": self._delay_override
+            "delayOverride": self._delay_override,
+            "embedder": self._embedder
         }
 
 

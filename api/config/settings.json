@@ -55,5 +55,8 @@
             "delay": 10,
             "thinking": false
         }
-    ]
+    ],
+    "embedder": {
+        "parallel": false
+    }
 }

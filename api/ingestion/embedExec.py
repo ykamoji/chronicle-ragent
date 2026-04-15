@@ -1,45 +1,18 @@
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from api.ingestion.RateLimiter import RateLimiter
 from api.ingestion.embedder import get_embedding
-
 
 MAX_WORKERS = 3          # Tune based on API limits
 MAX_RETRIES = 3
 CONCURRENCY_LIMIT = 3          # Usually <= MAX_WORKERS
 RATE_LIMIT_PER_MIN = 80
 
-rate_semaphore = threading.Semaphore(CONCURRENCY_LIMIT)
-progress_lock = threading.Lock()
+rate_semaphore_embedder = threading.Semaphore(CONCURRENCY_LIMIT)
+progress_lock_embedder = threading.Lock()
 
-# -----------------------------
-# RATE LIMITER
-# -----------------------------
-class RateLimiter:
-    def __init__(self, max_calls, period):
-        self.max_calls = max_calls
-        self.period = period
-        self.lock = threading.Lock()
-        self.calls = []
-
-    def acquire(self):
-        while True:
-            with self.lock:
-                now = time.time()
-
-                # remove calls older than window
-                self.calls = [t for t in self.calls if now - t < self.period]
-
-                if len(self.calls) < self.max_calls:
-                    self.calls.append(now)
-                    return
-
-                # calculate sleep time
-                sleep_time = self.period - (now - self.calls[0])
-
-            time.sleep(sleep_time)
-
-rate_limiter = RateLimiter(RATE_LIMIT_PER_MIN, 60)
+rate_limiter_embedder = RateLimiter(RATE_LIMIT_PER_MIN, 60)
 
 # -----------------------------
 # EMBEDDING WORKER
@@ -54,10 +27,10 @@ def embed_and_store(doc, vector_col, logger):
     for attempt in range(MAX_RETRIES):
         try:
             # Enforce rate limit (100/min)
-            rate_limiter.acquire()
+            rate_limiter_embedder.acquire()
 
             # Enforce concurrency limit
-            with rate_semaphore:
+            with rate_semaphore_embedder:
                 emb = get_embedding(text_to_embed)
 
             vector_col.update_one(
@@ -109,7 +82,7 @@ def embed_missing_docs_parallel(missing_docs, session_id, sess_col, vector_col, 
                 logger.error(f"Unexpected failure for doc {doc_id}: {e}")
 
             # Thread-safe progress update
-            with progress_lock:
+            with progress_lock_embedder:
                 completed += 1
 
                 sess_col.update_one(

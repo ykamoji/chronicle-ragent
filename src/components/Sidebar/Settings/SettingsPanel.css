@@ -14,7 +14,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: 0;
   background: rgba(0, 0, 0, 0.03);
   font-size: 0.85rem;
   color: var(--text-secondary);
@@ -45,7 +45,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: 0px;
   background: transparent;
   border: 1px solid var(--panel-glass-border);
   color: var(--text-primary);
@@ -178,7 +178,7 @@
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: 0px;
   cursor: pointer;
   transition: all 0.12s ease;
   font-size: 0.9rem;

@@ -157,7 +157,7 @@ export default function SettingsPanel({ isCollapsed }) {
 
             <div className="settings-section-label">Embedder</div>
             <div className="toggle-row">
-              <span className="toggle-label">Parallel Embedding</span>
+              <span className="toggle-label">Parallel Ingestion</span>
               <label className="switch">
                 <input
                   type="checkbox"
@@ -168,7 +168,7 @@ export default function SettingsPanel({ isCollapsed }) {
               </label>
             </div>
             <div className="delay-hint">
-              Speeds up ingestion by processing chunks in parallel.
+              Speeds up ingestion by processing in parallelization (rate limits apply).
             </div>
 
             <div className="settings-divider" />

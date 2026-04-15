@@ -2,7 +2,7 @@
 .summary-card {
   background: var(--agent-msg-bg);
   border: 1px solid var(--panel-glass-border);
-  border-radius: 8px;
+  border-radius: 0;
   color: var(--text-primary);
   margin-bottom: 12px;
   transition: background 0.3s ease;

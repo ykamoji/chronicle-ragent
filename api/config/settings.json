@@ -57,6 +57,6 @@
         }
     ],
     "embedder": {
-        "parallel": false
+        "parallel": true
     }
 }

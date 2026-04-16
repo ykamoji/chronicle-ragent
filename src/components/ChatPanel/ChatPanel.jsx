@@ -6,6 +6,7 @@ import { CollapsibleObservation } from "./Observations/Observation";
 import "./ChatPanel.css";
 import { API_URL } from "../../api";
 import { LOCAL_TIMEZONE } from "../../timezone";
+import ConfirmDialog from "../Helpers/ConfirmDialog";
 
 
 // Direct to Flask for SSE streaming (bypasses Next.js proxy buffering)
@@ -93,6 +94,7 @@ export default function ChatPanel() {
   const [expandedSteps, setExpandedSteps] = useState({}); // Tracks which message reasoning is expanded
   const chatWindowRef = useRef(null);
   const liveThoughtsRef = useRef(null);
+  const [showSessionPopup, setShowSessionPopup] = useState(false);
   const {
     sessionId, setSessionId, messages, currentSummaries,
     setMessages, isSessionLoading, loadSession, sessionList, setSessionList,
@@ -221,6 +223,11 @@ export default function ChatPanel() {
     e?.preventDefault();
     const userQuery = (overrideQuery ?? query).trim();
     if (!userQuery) return;
+
+    if (!sessionId) {
+      setShowSessionPopup(true)
+      return;
+    }
 
     setQuery("");
     setMessages((prev) => [...prev, { role: "user", content: userQuery, timestamp: new Date().toLocaleString("en-US", { timeZone: LOCAL_TIMEZONE }) }]);
@@ -569,7 +576,7 @@ export default function ChatPanel() {
         </div>
       )}
 
-      {!isLoading && sampleQueries.length > 0 && (
+      {sessionId && !isLoading && sampleQueries.length > 0 && (
         <div className="sample-queries-container">
           {sampleQueries.map((q, idx) => (
             <button
@@ -601,6 +608,12 @@ export default function ChatPanel() {
           </button>
         )}
       </form>
+      <ConfirmDialog
+        open={!!showSessionPopup}
+        title="Need a novel!"
+        message={`Oops, you need to upload a novel first ${sessionList.length > 0 ? "or pick a chat you want to join in." : "."}`}
+        onCancel={() => setShowSessionPopup(false)}
+      />
     </main>
   );
 }

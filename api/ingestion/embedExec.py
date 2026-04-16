@@ -56,7 +56,7 @@ def embed_and_store(doc, vector_col, logger):
 # -----------------------------
 # PARALLEL EMBEDDING EXECUTION
 # -----------------------------
-def embed_missing_docs_parallel(missing_docs, session_id, sess_col, vector_col, logger):
+def embed_missing_docs_parallel(missing_docs, session_id, sess_col, vector_col, logger, start_val=0, total_val=None):
     """Embed missing documents in parallel using multiple threads."""
     total = len(missing_docs)
     completed = 0
@@ -90,8 +90,8 @@ def embed_missing_docs_parallel(missing_docs, session_id, sess_col, vector_col, 
                     {"session_id": session_id},
                     {
                         "$set": {
-                            "ingestion_progress.current": completed,
-                            "ingestion_progress.total": total
+                            "ingestion_progress.current": start_val + completed,
+                            "ingestion_progress.total": total_val if total_val is not None else total
                         }
                     }
                 )

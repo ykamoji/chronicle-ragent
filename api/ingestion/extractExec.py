@@ -32,6 +32,11 @@ def copy_metadata(c_hash, existing, i, sess_col, session_id, vector_col, logger)
 
     # logger.info(f"Chapter {chapter_name} already in DB. Associating with current session.")
     res = vector_col.update_many({"chapter_hash": c_hash}, {"$addToSet": {"session_id": session_id}})
+    
+    if session_id in existing_sessions:
+        return res.matched_count, True
+
+    metadata_session_available = False
 
     if chapter_name and existing_sessions:
         # Find a session that has this chapter in its metadata and pull only that record
@@ -44,9 +49,10 @@ def copy_metadata(c_hash, existing, i, sess_col, session_id, vector_col, logger)
             item_to_copy = source_sess_doc["metadata"][0]
             # Push to the current session
             sess_col.update_one({"session_id": session_id}, {"$push": {"metadata": item_to_copy}})
+            metadata_session_available = True
             # logger.info(f"Copied metadata for '{chapter_name}' from an existing session.")
 
-    return res.modified_count, existing_sessions
+    return res.modified_count, metadata_session_available
 
 
 def extract_metadata_invocation(chapter_text, i, sess_col, session_id, vector_col, logger):
@@ -71,7 +77,7 @@ def extract_metadata_invocation(chapter_text, i, sess_col, session_id, vector_co
 
     if not success:
         cleanup_session_data(session_id, vector_col, sess_col, logger)
-        raise Exception(f"Metadata extraction failed for chapter {i} after 3 attempts.")
+        raise Exception(f"Metadata extraction failed for chapter after 3 attempts.")
 
     chapter_summary = metadata.get("summary", "")
     if chapter_summary:
@@ -136,8 +142,9 @@ def process_chapter(i, chapter_text, session_id, vector_col, sess_col, logger):
             embeddings_count, existing_sessions = copy_metadata(c_hash, existing, i, sess_col, session_id, vector_col, logger)
             if not existing_sessions:
                 extract_metadata_invocation(chapter_text, i, sess_col, session_id, vector_col, logger)
-
+            
             update_progress(sess_col, session_id)
+
             return {
                 "chapter_hash": c_hash,
                 "embeddings_added": embeddings_count,
@@ -162,6 +169,9 @@ def process_chapter(i, chapter_text, session_id, vector_col, sess_col, logger):
 def parallel_extractor(chapters, sess_col, session_id, vector_col, logger):
     chapter_hashes = []
     embeddings_count = 0
+    
+    global current_progress
+    current_progress = 0
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = [
@@ -182,7 +192,6 @@ def parallel_extractor(chapters, sess_col, session_id, vector_col, logger):
                 cleanup_session_data(session_id, vector_col, sess_col, logger)
                 raise
 
-    global current_progress
     current_progress = 0
 
     return chapter_hashes, embeddings_count

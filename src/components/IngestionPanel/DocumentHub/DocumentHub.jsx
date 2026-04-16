@@ -64,6 +64,10 @@ export default function DocumentHub() {
   const ingestion_completed = useRef(false)
   const resumeIngestion = useRef(false)
   const triggeredIngestion = useRef(false)
+  const [showResumeButton, setShowResumeButton] = useState(false);
+  const stallTimerRef = useRef(null);
+  const eventSourceRef = useRef(null);
+  const lastProgressRef = useRef({ current: null, phase: null });
 
   // Resume tracking if session already exists and is ingesting, and fetch session data
   useEffect(() => {
@@ -109,6 +113,48 @@ export default function DocumentHub() {
     }
 
   }, [ingestionProgress]);
+
+
+  useEffect(() => {
+    if (ingestionProgress && ingestionProgress.phase !== "complete" && ingestionProgress.phase !== "failed") {
+      // If progress or phase changed, reset stall timer
+      if (ingestionProgress.current !== lastProgressRef.current.current) {
+        lastProgressRef.current = { current: ingestionProgress.current };
+        setShowResumeButton(false);
+
+        if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
+
+        stallTimerRef.current = setTimeout(() => {
+          setShowResumeButton(true);
+          if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+            eventSourceRef.current = null;
+            triggeredIngestion.current = false;
+          }
+        }, 90000); // 90 second
+      }
+    } else {
+      // Ingestion finished or not started
+      setShowResumeButton(false);
+      if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
+    }
+  }, [ingestionProgress]);
+
+
+  const handleResumeIngestion = async () => {
+    try {
+      const res = await fetch(`${API_URL}/resume-ingestion/${sessionId}`);
+      if (res.ok) {
+        setShowResumeButton(false);
+        // Restart the progress stream if it stopped
+        if (!triggeredIngestion.current) {
+          startProgressStream(sessionId);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to resume ingestion:", err);
+    }
+  };
 
 
   const handleFileUpload = async (e) => {
@@ -169,10 +215,16 @@ export default function DocumentHub() {
   const startProgressStream = (id) => {
     if (triggeredIngestion.current) return
 
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+    }
+
     triggeredIngestion.current = true
     // Direct link to Flask for SSE (bypassing Next.js proxy if needed)
     const sseUrl = `${API_URL}/ingest-progress/${id}`;
     const eventSource = new EventSource(sseUrl);
+
+    eventSourceRef.current = eventSource;
 
     eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -187,6 +239,7 @@ export default function DocumentHub() {
 
       if (data.phase === "complete" || data.phase === "failed") {
         eventSource.close();
+        eventSourceRef.current = null;
         triggeredIngestion.current = false
         if (data.phase === "complete") {
           setUploadStatus("Ingestion complete!");
@@ -199,6 +252,8 @@ export default function DocumentHub() {
 
     eventSource.onerror = (err) => {
       console.log("SSE Error:", err);
+      eventSourceRef.current = null;
+      triggeredIngestion.current = false
       eventSource.close();
     };
   };
@@ -407,19 +462,41 @@ export default function DocumentHub() {
               >Download</button>
             </div>
           </>
-        ) : (
+        ) : (<>
           <div className="ingestion-stepper">
             <div className="stepper-rail"></div>
             {renderProgressBar("extraction", "Stage 1: Metadata Extraction")}
             {renderProgressBar("embedding", "Stage 2: Embedding Generation")}
           </div>
+          {showResumeButton && (
+            <button
+              type="button"
+              className="resume-ingestion-btn"
+              onClick={handleResumeIngestion}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
+              Resume
+            </button>
+          )}
+        </>
         )}</>
       }
 
       {
         uploadStatus && !ingestionProgress && (
-          <div style={{ padding: "12px", background: "var(--sys-msg-bg)", borderRadius: "8px", fontSize: "0.9rem", marginTop: "16px" }}>
-            {uploadStatus}
+          <div style={{ padding: "12px", borderRadius: "8px", fontSize: "0.9rem", marginTop: "20px" }}>
+            <div
+              style={{
+                position: "relative",
+                height: "8px",
+                width: "100%",
+                overflow: "hidden",
+                borderRadius: "999px",
+                background: "rgba(0,0,0,0.08)",
+              }}
+            >
+              <div className="indeterminate-bar" />
+            </div>
           </div>
         )
       }

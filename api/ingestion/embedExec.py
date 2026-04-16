@@ -3,6 +3,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from api.ingestion.RateLimiter import RateLimiter
 from api.ingestion.embedder import get_embedding
+from api.config.settings import app_settings
 
 MAX_WORKERS = 3          # Tune based on API limits
 MAX_RETRIES = 3
@@ -11,7 +12,7 @@ CONCURRENCY_LIMIT = 3          # Usually <= MAX_WORKERS
 rate_semaphore_embedder = threading.Semaphore(CONCURRENCY_LIMIT)
 progress_lock_embedder = threading.Lock()
 
-rate_limiter_embedder = RateLimiter(80, 60)
+rate_limiter_embedder = RateLimiter(app_settings.get_embedder_rate_limit(), 60)
 
 # -----------------------------
 # EMBEDDING WORKER
@@ -25,7 +26,8 @@ def embed_and_store(doc, vector_col, logger):
 
     for attempt in range(MAX_RETRIES):
         try:
-            # Enforce rate limit (100/min)
+            # Enforce rate limit (/min)
+            rate_limiter_embedder.max_calls = app_settings.get_embedder_rate_limit()
             rate_limiter_embedder.acquire()
 
             # Enforce concurrency limit
@@ -40,10 +42,10 @@ def embed_and_store(doc, vector_col, logger):
             return doc_id, True, None
 
         except Exception as e:
-            logger.warning(f"Embedding failed (Attempt {attempt+1}/{MAX_RETRIES}) for doc {doc_id}: {e}")
+            logger.warning(f"Embedding failed (Attempt {attempt+1}/{MAX_RETRIES}): {e}")
 
             if attempt < MAX_RETRIES - 1:
-                time.sleep(2 * (attempt + 1))  # exponential backoff
+                time.sleep(4 * (attempt + 1))  # exponential backoff
 
     # Final failure
     vector_col.update_one({"_id": doc_id}, {"$set": {"embedding_status": "failed"}})

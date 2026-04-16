@@ -14,7 +14,7 @@ class AppSettings:
         self._model_list = []
         self._active_model = None  # dict with name, model, delay
         self._delay_override = None  # int | None
-        self._embedder = {"parallel": True}
+        self._ingestion = {"parallel": True, "extractorRateLimit": 8, "embedderRateLimit": 25}
         self._load()
 
     # ── Bootstrap ──────────────────────────────────────────────────────
@@ -25,7 +25,7 @@ class AppSettings:
             with open(_SETTINGS_PATH, "r") as f:
                 data = json.load(f)
             self._model_list = data.get("modelList", [])
-            self._embedder = data.get("embedder", {"parallel": True})
+            self._ingestion = data.get("ingestion", {"parallel": True, "extractorRateLimit": 8, "embedderRateLimit": 25})
         except Exception as e:
             logger.error(f"Failed to load settings.json: {e}")
             self._model_list = []
@@ -70,9 +70,17 @@ class AppSettings:
             return self._active_model.get("thinking", False)
         return False
 
-    def get_embedder_parallel(self) -> bool:
+    def get_ingestion_parallel(self) -> bool:
         """Returns whether parallel embedding is enabled."""
-        return self._embedder.get("parallel", True)
+        return self._ingestion.get("parallel", True)
+
+    def get_extractor_rate_limit(self) -> int:
+        """Returns the rate limit for metadata extraction."""
+        return self._ingestion.get("extractorRateLimit", 8)
+
+    def get_embedder_rate_limit(self) -> int:
+        """Returns the rate limit for document embedding."""
+        return self._ingestion.get("embedderRateLimit", 25)
 
     # ── Setters ────────────────────────────────────────────────────────
 
@@ -97,10 +105,22 @@ class AppSettings:
             logger.info(f"Delay override set to {self._delay_override}s")
         self._save()
 
-    def set_embedder_parallel(self, enabled: bool) -> None:
+    def set_ingestion_parallel(self, enabled: bool) -> None:
         """Sets whether parallel embedding is enabled."""
-        self._embedder["parallel"] = bool(enabled)
-        logger.info(f"Embedder parallel set to {self._embedder['parallel']}")
+        self._ingestion["parallel"] = bool(enabled)
+        logger.info(f"Ingestion parallel set to {self._ingestion['parallel']}")
+        self._save()
+
+    def set_extractor_rate_limit(self, value: int) -> None:
+        """Sets the rate limit for metadata extraction."""
+        self._ingestion["extractorRateLimit"] = int(value)
+        logger.info(f"Extractor rate limit set to {value}")
+        self._save()
+
+    def set_embedder_rate_limit(self, value: int) -> None:
+        """Sets the rate limit for document embedding."""
+        self._ingestion["embedderRateLimit"] = int(value)
+        logger.info(f"Embedder rate limit set to {value}")
         self._save()
 
     # ── Serialisation ──────────────────────────────────────────────────
@@ -112,7 +132,7 @@ class AppSettings:
                 data = json.load(f)
             
             data["modelList"] = self._model_list
-            data["embedder"] = self._embedder           
+            data["ingestion"] = self._ingestion           
             with open(_SETTINGS_PATH, "w") as f:
                 json.dump(data, f, indent=4)
         except Exception as e:
@@ -123,7 +143,7 @@ class AppSettings:
             "modelList": self._model_list,
             "activeModel": self._active_model,
             "delayOverride": self._delay_override,
-            "embedder": self._embedder
+            "ingestion": self._ingestion
         }
 
 

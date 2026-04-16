@@ -56,7 +56,9 @@
             "thinking": false
         }
     ],
-    "embedder": {
-        "parallel": true
+    "ingestion": {
+        "parallel": false,
+        "extractorRateLimit": 8,
+        "embedderRateLimit": 25
     }
 }

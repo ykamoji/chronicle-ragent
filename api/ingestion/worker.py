@@ -95,7 +95,7 @@ def root_embedder(chapter_hashes, embeddings_count, sess_col, session_id, vector
         # logger.info(f"Found {total_embeddings} chunks needing embeddings.")
 
         # Choose embedding strategy based on settings
-        if app_settings.get_embedder_parallel():
+        if app_settings.get_ingestion_parallel():
             logger.info("Parallel Embedding Execution.")
             embed_missing_docs_parallel(missing_docs, session_id, sess_col, vector_col, logger)
         else:
@@ -129,12 +129,14 @@ def process_file_background(text_content: str, session_id: str):
                                  }
                             })
 
-        if app_settings.get_embedder_parallel():
+        if app_settings.get_ingestion_parallel():
             logger.info("Parallel Extraction Execution.")
             chapter_hashes, embeddings_count = parallel_extractor(chapters, sess_col, session_id, vector_col, logger)
         else:
             logger.info("Sequential Extraction Execution.")
             chapter_hashes, embeddings_count = sequential_extractor(chapters, sess_col, session_id, vector_col)
+
+        logger.info("Extraction completed.")
 
         root_embedder(chapter_hashes, embeddings_count, sess_col, session_id, vector_col)
 
@@ -142,6 +144,7 @@ def process_file_background(text_content: str, session_id: str):
         sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.phase": "complete"}})
         
         logger.info("Ingestion complete.")
+
     except Exception as e:
         logger.error(f"Ingestion pipeline failed: {e}")
         sess_col.update_one({"session_id": session_id},

@@ -9,6 +9,8 @@ export default function SettingsPanel({ isCollapsed }) {
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState(null);
   const [delayValue, setDelayValue] = useState("");
+  const [extRateValue, setExtRateValue] = useState("");
+  const [embRateValue, setEmbRateValue] = useState("");
   const panelRef = useRef(null);
 
   // ── Fetch settings on mount ──
@@ -24,6 +26,8 @@ export default function SettingsPanel({ isCollapsed }) {
         const data = await res.json();
         setSettings(data);
         setDelayValue(data.delayOverride != null ? String(data.delayOverride) : "");
+        setExtRateValue(data.ingestion?.extractorRateLimit != null ? String(data.ingestion.extractorRateLimit) : "8");
+        setEmbRateValue(data.ingestion?.embedderRateLimit != null ? String(data.ingestion.embedderRateLimit) : "25");
       }
     } catch (err) {
       console.error("Failed to load settings", err);
@@ -70,7 +74,21 @@ export default function SettingsPanel({ isCollapsed }) {
 
   const handleToggleParallel = (e) => {
     const enabled = e.target.checked;
-    updateSettings({ embedder: { parallel: enabled } });
+    updateSettings({ ingestion: { ...settings.ingestion, parallel: enabled } });
+  };
+
+  const handleExtRateBlur = () => {
+    const parsed = parseInt(extRateValue, 10);
+    if (!isNaN(parsed)) {
+      updateSettings({ ingestion: { ...settings.ingestion, extractorRateLimit: parsed } });
+    }
+  };
+
+  const handleEmbRateBlur = () => {
+    const parsed = parseInt(embRateValue, 10);
+    if (!isNaN(parsed)) {
+      updateSettings({ ingestion: { ...settings.ingestion, embedderRateLimit: parsed } });
+    }
   };
 
   const handleDummyAction = (label) => {
@@ -155,20 +173,46 @@ export default function SettingsPanel({ isCollapsed }) {
 
             <div className="settings-divider" />
 
-            <div className="settings-section-label">Embedder</div>
+            <div className="settings-section-label">Ingestion</div>
             <div className="toggle-row">
               <span className="toggle-label">Parallel Ingestion</span>
               <label className="switch">
                 <input
                   type="checkbox"
-                  checked={settings?.embedder?.parallel ?? true}
+                  checked={settings?.ingestion?.parallel ?? true}
                   onChange={handleToggleParallel}
                 />
                 <span className="slider" />
               </label>
             </div>
-            <div className="delay-hint">
-              Speeds up ingestion by processing in parallelization (rate limits apply).
+            <div className={`sliding-container ${settings?.ingestion?.parallel ? "open" : ""}`}>
+              <div className="delay-input-row">
+                <label>Extractor Rate Limit</label>
+                <input
+                  type="number"
+                  className="delay-input"
+                  min="1"
+                  value={extRateValue}
+                  onChange={(e) => setExtRateValue(e.target.value)}
+                  onBlur={handleExtRateBlur}
+                  onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
+                />
+              </div>
+              <div className="delay-input-row">
+                <label>Embedder Rate Limit</label>
+                <input
+                  type="number"
+                  className="delay-input"
+                  min="1"
+                  value={embRateValue}
+                  onChange={(e) => setEmbRateValue(e.target.value)}
+                  onBlur={handleEmbRateBlur}
+                  onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
+                />
+              </div>
+              <div className="delay-hint">
+                Controls requests per minute to Gemini API during ingestion phases.
+              </div>
             </div>
 
             <div className="settings-divider" />

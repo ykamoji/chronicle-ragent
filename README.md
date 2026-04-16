@@ -1,10 +1,15 @@
-# Chronicle
+# 📚 Chronicle
 
 An agentic RAG system built for long-form novel reasoning — answering complex questions about characters, plot, and narrative across hundreds of chapters.
 
 ---
 
-## The Problem with Standard RAG on Novels
+## 🚀 Live Demo
+
+👉 https://chronicle-ragent.onrender.com/
+
+
+##  📖 The Problem with Standard RAG on Novels
 
 Most RAG implementations retrieve the top-k semantically similar text chunks and hand them to an LLM. This works well for short documents and factual lookups. It breaks down on long-form fiction.
 
@@ -20,11 +25,11 @@ Chronicle is built specifically to handle this. It treats document Q&A as a mult
 
 ## How Chronicle Solves It
 
-### Agentic Reasoning over Search
+### 🧠 Agentic Reasoning over Search
 
 Rather than a single retrieval pass, Chronicle uses a ReAct (Reason + Act) agent loop. The agent reads the query, decides which search strategy is most appropriate, observes the results, and iterates — running multiple targeted searches if the first result is insufficient. The agent's reasoning process streams to the UI in real time, so you can follow its chain of thought.
 
-### Hybrid Search with Narrative Awareness
+### 🏗️ Hybrid Search with Narrative Awareness
 
 Chronicle combines three search mechanisms fused via Reciprocal Rank Fusion (RRF):
 
@@ -34,7 +39,7 @@ Chronicle combines three search mechanisms fused via Reciprocal Rank Fusion (RRF
 
 This combination solves the core failure mode of pure vector search on fiction: a character's name may not appear in the semantically nearest chunk, but BM25 and entity lookup find it directly.
 
-### Structure-Aware Ingestion
+### 🔁 Structure-Aware Ingestion
 
 The ingestion pipeline does more than chunk and embed. For each segment of the document, it uses an LLM pass to extract structured metadata: chapter title, point-of-view character, characters present in the scene, and a brief AI-generated summary. This metadata is stored alongside the embeddings and used to filter and rank search results, grounding retrieval in the actual narrative structure of the book rather than raw text proximity.
 
@@ -42,7 +47,7 @@ The pipeline supports parallel and sequential processing, configurable rate limi
 
 ---
 
-## Tech Stack
+## ⚙️Tech Stack
 
 | Layer | Technology |
 |---|---|
@@ -53,7 +58,7 @@ The pipeline supports parallel and sequential processing, configurable rate limi
 
 ---
 
-## Local Setup
+## 🛠️ Local Setup
 
 ### Prerequisites
 
@@ -96,3 +101,8 @@ npm run dev
 ```
 
 The app is available at `http://localhost:3000`.
+
+## 👤 Author
+
+Yash Kamoji  
+AI Engineer

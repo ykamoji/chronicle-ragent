@@ -37,13 +37,33 @@ const handleDownload = async () => {
   window.URL.revokeObjectURL(url);
 };
 
+const formatCompact = (num_str) => {
+
+  let num = parseFloat(num_str)
+  if (!num) return "0";
+  if (num < 1e3) return num.toString();
+  if (num < 1e6) return (num / 1e3).toFixed(1).replace(/\.0$/, "") + "K";
+  if (num < 1e9) return (num / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
+  return (num / 1e9).toFixed(1).replace(/\.0$/, "") + "B";
+};
+
+const StatCard = ({ icon, label, value }) => (
+  <div className="stat-card">
+    <div className="stat-icon">{icon}</div>
+    <div className="stat-info">
+      <span className="stat-label">{label}</span>
+      <span className="stat-value">{value || "—"}</span>
+    </div>
+  </div>
+);
+
 export default function DocumentHub() {
   const [uploadStatus, setUploadStatus] = useState("");
   const { sessionId, setSessionId, setCurrentSummaries,
     ingestionProgress, setIngestionProgress, setActiveIngestionTab, sessionList, setSessionList, sessionData, setSessionData } = useSession();
   const ingestion_completed = useRef(false)
-
   const resumeIngestion = useRef(false)
+  const triggeredIngestion = useRef(false)
 
   // Resume tracking if session already exists and is ingesting, and fetch session data
   useEffect(() => {
@@ -73,7 +93,7 @@ export default function DocumentHub() {
             const data = await res.json();
             setSessionData(data);
             setCurrentSummaries(data.metadata)
-            setActiveIngestionTab("summaries")
+            // setActiveIngestionTab("summaries")
             ingestion_completed.current = false
           }
         } catch (err) {
@@ -121,6 +141,7 @@ export default function DocumentHub() {
       }
 
       setUploadStatus(`Ingesting ${file.name}...`);
+
       startProgressStream(activeSessionId);
     } catch (err) {
       console.error(err);
@@ -146,6 +167,9 @@ export default function DocumentHub() {
   };
 
   const startProgressStream = (id) => {
+    if (triggeredIngestion.current) return
+
+    triggeredIngestion.current = true
     // Direct link to Flask for SSE (bypassing Next.js proxy if needed)
     const sseUrl = `${API_URL}/ingest-progress/${id}`;
     const eventSource = new EventSource(sseUrl);
@@ -163,9 +187,10 @@ export default function DocumentHub() {
 
       if (data.phase === "complete" || data.phase === "failed") {
         eventSource.close();
+        triggeredIngestion.current = false
         if (data.phase === "complete") {
           setUploadStatus("Ingestion complete!");
-          setActiveIngestionTab("summaries")
+          // setActiveIngestionTab("summaries")
         } else {
           setUploadStatus(`Ingestion failed: ${data.error || "Unknown error"}`);
         }
@@ -229,45 +254,110 @@ export default function DocumentHub() {
 
       {/* Current Document Display */}
       {sessionId && !show_live_updated && (
-        <div style={{
-          padding: "12px 16px",
-          background: "rgba(0, 0, 0, 0.02)",
-          border: "1px solid var(--panel-glass-border, rgba(0, 0, 0, 0.08))",
-          borderRadius: "8px",
-          marginTop: "20px",
-          marginBottom: "16px",
-          display: "flex",
-          alignItems: "center",
-          gap: "12px"
-        }}>
-          <span style={{ fontSize: "20px" }}>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              width="100"
-              height="100"
-            >
-              <path
-                d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"
-                fill="#e53935"
-              />
-              <path d="M14 2v6h6" fill="#ef5350" />
-              <text x="6.5" y="17" fontSize="6" fontFamily="Arial, sans-serif" fill="white">PDF</text>
-            </svg>
-          </span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: "13px", fontWeight: "500", color: "var(--text-primary)" }}>
-              {sessionData?.source_filename || sessionData?.chat_name || `Session ${sessionId.slice(0, 8)}`}
-            </div>
-            <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "2px" }}>
-              Uploaded: {formatDate(sessionData?.upload_time)}
+        <>
+          <div style={{
+            padding: "12px 16px",
+            background: "rgba(0, 0, 0, 0.02)",
+            border: "1px solid var(--panel-glass-border, rgba(0, 0, 0, 0.08))",
+            borderRadius: "8px",
+            marginTop: "20px",
+            marginBottom: "16px",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px"
+          }}>
+            <span style={{ fontSize: "20px" }}>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width="100"
+                height="100"
+              >
+                <path
+                  d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"
+                  fill="#e53935"
+                />
+                <path d="M14 2v6h6" fill="#ef5350" />
+                <text x="6.5" y="17" fontSize="6" fontFamily="Arial, sans-serif" fill="white">PDF</text>
+              </svg>
+            </span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "13px", fontWeight: "500", color: "var(--text-primary)" }}>
+                {sessionData?.source_filename || sessionData?.chat_name || `Session ${sessionId.slice(0, 8)}`}
+              </div>
+              <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "2px" }}>
+                Uploaded: {formatDate(sessionData?.upload_time)}
+              </div>
             </div>
           </div>
-        </div>
+
+          <div className="stats-container">
+            <h3>Novel</h3>
+            <div className="stats-grid">
+              <StatCard
+                icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>}
+                label="Total Words"
+                value={formatCompact(sessionData?.stats?.general?.total_words)}
+              />
+              <StatCard
+                icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>}
+                label="Chapters"
+                value={sessionData?.stats?.general?.total_chapters}
+              />
+            </div>
+
+            <h3 style={{ marginTop: '24px' }}>Infrastructure</h3>
+            <div className="stats-grid">
+              <StatCard
+                icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5V19A9 3 0 0 0 21 19V5"></path><path d="M3 12A9 3 0 0 0 21 12"></path></svg>}
+                label="Total Tokens"
+                value={formatCompact(sessionData?.stats?.chunks?.total_tokens)}
+              />
+              <StatCard
+                icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>}
+                label="Total Chunks"
+                value={sessionData?.stats?.chunks?.total_chunks}
+              />
+              <StatCard
+                icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><path d="M9 1v3"></path><path d="M15 1v3"></path><path d="M9 20v3"></path><path d="M15 20v3"></path><path d="M20 9h3"></path><path d="M20 15h3"></path><path d="M1 9h3"></path><path d="M1 15h3"></path></svg>}
+                label="Chunk Tokens"
+                value={formatCompact(Math.round(sessionData?.stats?.chunks?.chunk_tokens))}
+              />
+              <StatCard
+                icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>}
+                label="Overlap Tokens"
+                value={Math.round(sessionData?.stats?.chunks?.overlap_tokens)}
+              />
+              <StatCard
+                icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>}
+                label="Utilization"
+                value={`${sessionData?.stats?.chunks?.chunk_utilization_pct}%`}
+              />
+              <StatCard
+                icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>}
+                label="Overlap Redundancy"
+                value={`${sessionData?.stats?.chunks?.overlap_redundancy_pct}%`}
+              />
+            </div>
+            <h3 style={{ marginTop: '24px' }}>Quality Metrics</h3>
+            <div className="stats-grid">
+              <StatCard
+                icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>}
+                label="Lexical Density"
+                value={`${sessionData?.stats?.quality?.lexical_density}%`}
+              />
+              <StatCard
+                icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>}
+                label="Unique Words"
+                value={formatCompact(Math.round(sessionData?.stats?.quality?.unique_words))}
+              />
+            </div>
+          </div>
+        </>
       )}
 
       {show_live_updated && !knowledge_available && <>
-        {!ingestionProgress || ingestionProgress.phase === "complete" || ingestionProgress.phase === "failed" ? (
+        {!ingestionProgress ? (
           <>
             <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "16px", marginTop: "16px" }}>
               Upload PDF or text files to build the agent&apos;s knowledge base.
@@ -317,7 +407,6 @@ export default function DocumentHub() {
               >Download</button>
             </div>
           </>
-
         ) : (
           <div className="ingestion-stepper">
             <div className="stepper-rail"></div>

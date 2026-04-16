@@ -317,7 +317,7 @@
   background-color: rgba(255, 255, 255, 0.1);
   transition: 0.3s;
   border-radius: 20px;
-  border: 1px solid var(--panel-glass-border);
+  border: 1px solid var(--accent-cyan);
 }
 
 .slider:before {
@@ -327,17 +327,19 @@
   width: 14px;
   left: 2px;
   bottom: 2px;
-  background-color: white;
+  background-color: var(--accent-cyan);
   transition: 0.3s;
   border-radius: 50%;
 }
 
-input:checked + .slider {
+
+input:checked+.slider {
   background-color: var(--accent-cyan);
   border-color: var(--accent-cyan);
 }
 
-input:checked + .slider:before {
+input:checked+.slider:before {
+  background-color: white;
   transform: translateX(16px);
 }
 

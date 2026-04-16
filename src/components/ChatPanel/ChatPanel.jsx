@@ -88,6 +88,7 @@ export default function ChatPanel() {
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [agentSteps, setAgentSteps] = useState([]);
+  const [sampleQueries, setSampleQueries] = useState([]);
   const [streamSessionId, setStreamSessionId] = useState(null);
   const [expandedSteps, setExpandedSteps] = useState({}); // Tracks which message reasoning is expanded
   const chatWindowRef = useRef(null);
@@ -132,6 +133,17 @@ export default function ChatPanel() {
   useEffect(() => {
     currentSessionIdRef.current = sessionId;
   }, [sessionId]);
+
+  useEffect(() => {
+    fetch("/sample_queries.json")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.queries) {
+          setSampleQueries(data.queries);
+        }
+      })
+      .catch((err) => console.error("Failed to load sample queries:", err));
+  }, []);
 
   const isStreamVisible = sessionId === streamSessionId;
 
@@ -554,6 +566,20 @@ export default function ChatPanel() {
             <span></span>
           </div>
           <span className="session-loading-label">Loading conversation…</span>
+        </div>
+      )}
+
+      {!isLoading && sampleQueries.length > 0 && (
+        <div className="sample-queries-container">
+          {sampleQueries.map((q, idx) => (
+            <button
+              key={idx}
+              className="sample-query-chip"
+              onClick={() => handleSend(null, q)}
+            >
+              {q}
+            </button>
+          ))}
         </div>
       )}
 

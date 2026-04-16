@@ -9,14 +9,13 @@ from api.ingestion.RateLimiter import RateLimiter
 MAX_WORKERS = 3  # Tune based on API limits
 MAX_RETRIES = 3
 CONCURRENCY_LIMIT = 3  # Usually <= MAX_WORKERS
-RATE_LIMIT_PER_MIN = 8
 
 rate_semaphore_extractor = threading.Semaphore(CONCURRENCY_LIMIT)
 progress_lock_extractor = threading.Lock()
+
+rate_limiter_extractor = RateLimiter(8, 60)
+
 current_progress = 0
-
-rate_limiter_extractor = RateLimiter(RATE_LIMIT_PER_MIN, 60)
-
 
 def cleanup_session_data(session_id, vector_col, sess_col, logger):
     """Remove all metadata and vector associations for a failed session."""
@@ -30,7 +29,7 @@ def copy_metadata(c_hash, existing, i, sess_col, session_id, vector_col, logger)
     chapter_name = existing.get("chapter")
     existing_sessions = existing.get("session_id", [])
 
-    logger.info(f"Chapter {chapter_name} already in DB. Associating with current session.")
+    # logger.info(f"Chapter {chapter_name} already in DB. Associating with current session.")
     res = vector_col.update_many({"chapter_hash": c_hash}, {"$addToSet": {"session_id": session_id}})
 
     if chapter_name and existing_sessions:
@@ -44,7 +43,7 @@ def copy_metadata(c_hash, existing, i, sess_col, session_id, vector_col, logger)
             item_to_copy = source_sess_doc["metadata"][0]
             # Push to the current session
             sess_col.update_one({"session_id": session_id}, {"$push": {"metadata": item_to_copy}})
-            logger.info(f"Copied metadata for '{chapter_name}' from an existing session.")
+            # logger.info(f"Copied metadata for '{chapter_name}' from an existing session.")
 
     return res.modified_count, existing_sessions
 
@@ -85,7 +84,7 @@ def extract_metadata_invocation(chapter_text, i, sess_col, session_id, vector_co
                                 }
                             })
 
-    logger.info(f"Metadata extracted for chapter {metadata.get('chapter', 'Unknown')}")
+    # logger.info(f"Metadata extracted for chapter {metadata.get('chapter', 'Unknown')}")
     return metadata
 
 
@@ -111,7 +110,7 @@ def create_vectors(c_hash, chapter_text, i, sess_col, session_id, vector_col, lo
 
     inserts = len(result.inserted_ids)
 
-    logger.info(f"Created {inserts} vectors for chapter {metadata.get('chapter', 'Unknown')}")
+    # logger.info(f"Created {inserts} vectors for chapter {metadata.get('chapter', 'Unknown')}")
 
     return inserts
 
@@ -181,6 +180,7 @@ def parallel_extractor(chapters, sess_col, session_id, vector_col, logger):
                 cleanup_session_data(session_id, vector_col, sess_col, logger)
                 raise
 
-    logger.info("Ingestion completed successfully")
+    global current_progress
+    current_progress = 0
 
     return chapter_hashes, embeddings_count

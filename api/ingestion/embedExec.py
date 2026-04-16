@@ -7,12 +7,11 @@ from api.ingestion.embedder import get_embedding
 MAX_WORKERS = 3          # Tune based on API limits
 MAX_RETRIES = 3
 CONCURRENCY_LIMIT = 3          # Usually <= MAX_WORKERS
-RATE_LIMIT_PER_MIN = 80
 
 rate_semaphore_embedder = threading.Semaphore(CONCURRENCY_LIMIT)
 progress_lock_embedder = threading.Lock()
 
-rate_limiter_embedder = RateLimiter(RATE_LIMIT_PER_MIN, 60)
+rate_limiter_embedder = RateLimiter(80, 60)
 
 # -----------------------------
 # EMBEDDING WORKER
@@ -22,7 +21,7 @@ def embed_and_store(doc, vector_col, logger):
 
     text_to_embed = f"[{doc['chapter']} | POV : {doc['pov']}] {doc['text']}"
 
-    logger.info(f"Embedding {text_to_embed[:100]}...")
+    # logger.info(f"Embedding {text_to_embed[:100]}...")
 
     for attempt in range(MAX_RETRIES):
         try:
@@ -60,7 +59,7 @@ def embed_missing_docs_parallel(missing_docs, session_id, sess_col, vector_col, 
     total = len(missing_docs)
     completed = 0
 
-    logger.info(f"Starting parallel embedding for {total} documents...")
+    # logger.info(f"Starting parallel embedding for {total} documents...")
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         future_to_doc = {

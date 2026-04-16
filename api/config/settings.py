@@ -14,23 +14,25 @@ class AppSettings:
         self._model_list = []
         self._active_model = None  # dict with name, model, delay
         self._delay_override = None  # int | None
+        self._embedder = {"parallel": True}
         self._load()
 
     # ── Bootstrap ──────────────────────────────────────────────────────
 
     def _load(self):
-        """Load modelList from disk and default active model to gemini-3.1-flash-lite-preview."""
+        """Load modelList from disk and determine the default active model."""
         try:
             with open(_SETTINGS_PATH, "r") as f:
                 data = json.load(f)
             self._model_list = data.get("modelList", [])
+            self._embedder = data.get("embedder", {"parallel": True})
         except Exception as e:
             logger.error(f"Failed to load settings.json: {e}")
             self._model_list = []
 
-        # Default to gemini-3.1-flash-lite-preview
+        # Default to the model marked as default, or the first one in the list
         default = next(
-            (m for m in self._model_list if m["model"] == "gemini-3.1-flash-lite-preview"),
+            (m for m in self._model_list if m.get("default") is True),
             self._model_list[0] if self._model_list else None,
         )
         self._active_model = default
@@ -41,7 +43,7 @@ class AppSettings:
         """Returns the model id string for API calls."""
         if self._active_model:
             return self._active_model["model"]
-        return "gemini-3.1-flash-lite-preview"
+        return ""
 
     def get_model_info(self) -> dict:
         """Returns the full active model dict (name, model, delay)."""
@@ -68,6 +70,10 @@ class AppSettings:
             return self._active_model.get("thinking", False)
         return False
 
+    def get_embedder_parallel(self) -> bool:
+        """Returns whether parallel embedding is enabled."""
+        return self._embedder.get("parallel", True)
+
     # ── Setters ────────────────────────────────────────────────────────
 
     def set_model(self, model_id: str) -> bool:
@@ -89,14 +95,35 @@ class AppSettings:
         else:
             self._delay_override = int(value)
             logger.info(f"Delay override set to {self._delay_override}s")
+        self._save()
+
+    def set_embedder_parallel(self, enabled: bool) -> None:
+        """Sets whether parallel embedding is enabled."""
+        self._embedder["parallel"] = bool(enabled)
+        logger.info(f"Embedder parallel set to {self._embedder['parallel']}")
+        self._save()
 
     # ── Serialisation ──────────────────────────────────────────────────
+
+    def _save(self):
+        """Save current configuration to settings.json."""
+        try:
+            with open(_SETTINGS_PATH, "r") as f:
+                data = json.load(f)
+            
+            data["modelList"] = self._model_list
+            data["embedder"] = self._embedder           
+            with open(_SETTINGS_PATH, "w") as f:
+                json.dump(data, f, indent=4)
+        except Exception as e:
+            logger.error(f"Failed to save settings.json: {e}")
 
     def to_dict(self) -> dict:
         return {
             "modelList": self._model_list,
             "activeModel": self._active_model,
-            "delayOverride": self._delay_override
+            "delayOverride": self._delay_override,
+            "embedder": self._embedder
         }
 
 

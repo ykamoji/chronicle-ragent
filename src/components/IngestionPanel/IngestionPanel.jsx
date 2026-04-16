@@ -21,35 +21,6 @@ export default function IngestionPanel() {
 
   const hasSummaries = currentSummaries && currentSummaries.length > 0 && !isIngesting;
 
-  // Render tab content
-  const renderContent = () => {
-    switch (activeIngestionTab) {
-      case "documents":
-        return <DocumentHub />;
-      case "summaries":
-        return hasSummaries ? (
-          <ChapterSummaries currentSummaries={currentSummaries} />
-        ) : (
-          <div className="empty-state">No summaries available yet. Upload a document to generate them.</div>
-        );
-      case "reference":
-        return referenceText ? (
-          <div className="reference-content">
-            <h2>Reference Text</h2>
-            <div className="reference-text-body">
-              {referenceText.split('\n').map((para, i) => (
-                para.trim() ? <p key={i}>{para}</p> : <br key={i} />
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="empty-state">Click a specific text block in the chat to view the full reference document here.</div>
-        );
-      default:
-        return <DocumentHub />;
-    }
-  };
-
   return (
     <div className="ingestion-panel-wrapper">
       <div className="panel-header">
@@ -95,7 +66,40 @@ export default function IngestionPanel() {
           </button>
         </div>
 
-        <div className="tab-content">{renderContent()}</div>
+        <div className="tab-content">
+          <div className="tab-container">
+            <div hidden={activeIngestionTab !== "documents"}>
+              <DocumentHub />
+            </div>
+
+            <div hidden={activeIngestionTab !== "summaries"}>
+              {!isIngesting ? (
+                <ChapterSummaries currentSummaries={currentSummaries} />
+              ) : (
+                <div className="empty-state">
+                  No plot summary available yet. Upload a novel to generate them.
+                </div>
+              )}
+            </div>
+
+            <div hidden={activeIngestionTab !== "reference"}>
+              {referenceText ? (
+                <div className="reference-content">
+                  <h2>Reference Text</h2>
+                  <div className="reference-text-body">
+                    {referenceText.split("\n").map((para, i) =>
+                      para.trim() ? <p key={i}>{para}</p> : <br key={i} />
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="empty-state">
+                  Click a specific text block in the chat to view the full reference document here.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

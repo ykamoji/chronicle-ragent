@@ -23,6 +23,7 @@ export function SessionProvider({ children }) {
   const [activeIngestionTab, setActiveIngestionTab] = useState("documents");
   const [highlightChapter, setHighlightChapter] = useState(null);
   const [sessionList, setSessionList] = useState([]);
+  const [sessionData, setSessionData] = useState(null);
 
   const fetchSessions = useCallback(async () => {
     try {
@@ -43,6 +44,8 @@ export function SessionProvider({ children }) {
       setSessionId(id);
       setMessages(cached.messages || []);
       setCurrentSummaries(cached.summaries || []);
+      setSessionData(cached.data || null);
+      setIngestionProgress(cached.ingestionProgress || null);
       return;
     }
 
@@ -61,18 +64,24 @@ export function SessionProvider({ children }) {
     }
 
     try {
-      const [sessRes, msgRes] = await Promise.all([
-        fetch(`${API_URL}/sessions/${id}`),
-        fetch(`${API_URL}/messages/${id}`)
-      ]);
 
-      if (sessRes.ok && msgRes.ok) {
-        const data = await sessRes.json();
+      setSessionId(id);
+
+      if (!forceRefresh) {
+        const sessRes = await fetch(`${API_URL}/sessions/${id}`);
+
+        if (sessRes.ok) {
+          const data = await sessRes.json();
+          setCurrentSummaries(data.metadata || []);
+          setIngestionProgress(data.ingestion_progress || null);
+          setSessionData(data)
+        }
+      }
+
+      const msgRes = await fetch(`${API_URL}/messages/${id}`);
+
+      if (msgRes.ok) {
         const chatLogs = await msgRes.json();
-
-        setSessionId(data.session_id);
-        setCurrentSummaries(data.metadata || []);
-        setIngestionProgress(data.ingestion_progress || null);
 
         if (chatLogs && chatLogs.length > 0) {
           const parsedMsgs = [];
@@ -127,6 +136,7 @@ export function SessionProvider({ children }) {
     setCurrentSummaries([]);
     setIngestionProgress(null);
     setIsPanelExpanded(true);
+    if (activeIngestionTab != "document") setActiveIngestionTab("documents")
   }, [isPanelExpanded]);
 
   // Auto-sync local state to cache whenever it changes for the active session
@@ -136,11 +146,13 @@ export function SessionProvider({ children }) {
         ...prev,
         [sessionId]: {
           messages: messages,
-          summaries: currentSummaries
+          summaries: currentSummaries,
+          data: sessionData,
+          ingestionProgress: ingestionProgress,
         }
       }));
     }
-  }, [messages, currentSummaries, sessionId]);
+  }, [messages, currentSummaries, sessionId, sessionData, ingestionProgress]);
 
   return (
     <SessionContext.Provider
@@ -167,6 +179,8 @@ export function SessionProvider({ children }) {
         sessionList,
         setSessionList,
         fetchSessions,
+        sessionData,
+        setSessionData
       }}
     >
       {children}

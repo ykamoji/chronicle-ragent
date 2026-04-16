@@ -8,6 +8,7 @@ import {
 import "./AnalyticsDashboard.css";
 
 import { API_URL } from "../../api";
+import { LOCAL_TIMEZONE } from "../../timezone";
 
 const TOOL_COLORS = {
   Vector: "#6366f1",
@@ -79,8 +80,16 @@ export default function AnalyticsDashboard() {
         const now = new Date();
         fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
       } else if (timeRange === "custom") {
-        if (customFromDate) fromDate = new Date(customFromDate).toISOString();
-        if (customToDate) toDate = new Date(customToDate).toISOString();
+        if (customFromDate) {
+          const from = new Date(customFromDate);
+          from.setSeconds(0, 0);
+          fromDate = from.toISOString();
+        }
+        if (customToDate) {
+          const to = new Date(customToDate);
+          to.setSeconds(59, 999);
+          toDate = to.toISOString();
+        }
       }
 
       if (fromDate) params.append("from", fromDate);
@@ -190,10 +199,11 @@ export default function AnalyticsDashboard() {
 
   const responseTimeTrendData = processedToolData
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
-    .slice(-50)
     .map((d, idx) => ({
       idx,
-      timestamp: new Date(d.timestamp).toLocaleDateString(),
+      timestamp: new Date(d.timestamp).toLocaleDateString("en-US", {
+        timeZone: LOCAL_TIMEZONE,
+      }),
       time: d.time_taken
     }));
 
@@ -514,7 +524,7 @@ export default function AnalyticsDashboard() {
                         height={80}
                         stroke="#64748b"
                       />
-                      <YAxis fontSize={12} stroke="#64748b" />
+                      <YAxis fontSize={12} stroke="#64748b" label={{ value: "Res Time", angle: -90, position: "insideLeft" }} />
                       <Tooltip contentStyle={{ background: 'rgba(255,255,255,0.95)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px' }} />
                       <Line
                         type="monotone"

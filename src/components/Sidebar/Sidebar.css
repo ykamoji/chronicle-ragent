@@ -50,6 +50,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 0.95rem;
+  border-radius: 0;
 }
 
 .sidebar-item:hover {

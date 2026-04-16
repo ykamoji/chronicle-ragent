@@ -69,7 +69,7 @@ button {
   background: linear-gradient(90deg, #6366f1, #8b5cf6);
   color: #ffffff;
   padding: 10px 24px;
-  border-radius: 8px;
+  border-radius: 0;
   font-weight: 600;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }

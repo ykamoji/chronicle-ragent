@@ -57,7 +57,7 @@
         }
     ],
     "ingestion": {
-        "parallel": false,
+        "parallel": true,
         "extractorRateLimit": 8,
         "embedderRateLimit": 25
     }

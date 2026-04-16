@@ -14,6 +14,12 @@ from api.config.settings import app_settings
 
 logger = logging.getLogger(__name__)
 
+
+def update_progress(i, sess_col, session_id):
+    # Update current progress
+    sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.current": i + 1}})
+
+
 def sequential_extractor(chapters, sess_col, session_id, vector_col):
     chapter_hashes = []
     total_embeddings_count = 0
@@ -31,13 +37,14 @@ def sequential_extractor(chapters, sess_col, session_id, vector_col):
                     extract_metadata_invocation(chapter_text, i, sess_col, session_id, vector_col, logger)
                     time.sleep(app_settings.get_delay())
 
+                update_progress(i, sess_col, session_id)
+
                 # We don't skip entirely; we still want to check if embeddings are needed in Phase 2
                 continue
 
             create_vectors(c_hash, chapter_text, i, sess_col, session_id, vector_col, logger)
 
-            # Update current progress
-            sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.current": i + 1}})
+            update_progress(i, sess_col, session_id)
             # logger.info(f"Metadata extracted for chapter {i}.")
             time.sleep(app_settings.get_delay())
         except Exception as e:

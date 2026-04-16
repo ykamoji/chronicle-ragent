@@ -89,7 +89,7 @@ export default function Sidebar() {
                 }}
                 className={`sidebar-item ${sessionId === session.session_id ? "active" : ""}`}
               >
-                {session.chat_name || `Session ${session.session_id.slice(0, 8)}`}
+                {session.chat_name || `Session ${session?.session_id?.slice(0, 8)}`}
                 <button
                   className="session-menu-trigger"
                   onClick={(e) => {

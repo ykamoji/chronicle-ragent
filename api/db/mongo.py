@@ -19,6 +19,7 @@ class MongoDBClient:
             self.sessions = None
             self.messages = None
             self.analytics = None
+            self.uploads = None
             return
             
         try:
@@ -33,6 +34,7 @@ class MongoDBClient:
             self.sessions: Collection = self.db["sessions"]
             self.messages: Collection = self.db["messages"]
             self.analytics: Collection = self.db["analytics"]
+            self.uploads: Collection = self.db["uploads"]
 
             try:
                 self.db.command("ping")
@@ -48,6 +50,7 @@ class MongoDBClient:
             self.sessions = None
             self.messages = None
             self.analytics = None
+            self.uploads = None
 
     def get_vector_collection(self) -> Collection:
         return self.vector
@@ -60,6 +63,9 @@ class MongoDBClient:
 
     def get_analytics_collection(self) -> Collection:
         return self.analytics
+
+    def get_uploads_collection(self) -> Collection:
+        return self.uploads
 
 # Singleton instance
 mongo = MongoDBClient()

@@ -10,7 +10,7 @@ from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from api.agent.orchestrator import run_agent_stream, interrupt_agent
 from api.agent.memory import memory
-from api.ingestion.worker import start_ingession
+from api.ingestion.worker import start_ingession, process_file_background
 from api.db.mongo import mongo
 from api.db.cache import session_cache
 from api.config.settings import app_settings
@@ -220,6 +220,33 @@ def ingest_document():
     thread.start()
 
     return jsonify({"message": "Document accepted. Ingestion running in the background.", "session_id": session_id})
+
+
+@app.route("/resume-ingestion/<session_id>", methods=["GET"])
+def resume_ingestion(session_id):
+    """Resumes ingestion by retrieving chapters from the uploads collection."""
+    uploads_col = mongo.get_uploads_collection()
+    if uploads_col is None:
+        return jsonify({"error": "DB not connected"}), 503
+
+    # Retrieve chapters sorted by index
+    docs = list(uploads_col.find({"session_id": session_id}).sort("chapter_index", 1))
+    if not docs:
+        logger.warning(f"No chapters found for session {session_id} in uploads.")
+        return jsonify({"error": "No uploaded chapters found for this session."}), 404
+
+    chapters = [doc["content"] for doc in docs]
+
+    def background_resume():
+        success = process_file_background(chapters, session_id)
+        if success:
+            uploads_col.delete_many({"session_id": session_id})
+            logger.info(f"Resumed ingestion completed and cleaned up for session {session_id}.")
+
+    thread = threading.Thread(target=background_resume)
+    thread.start()
+
+    return jsonify({"message": "Ingestion resume started in background.", "session_id": session_id})
 
 
 @app.route("/sessions", methods=["GET"])

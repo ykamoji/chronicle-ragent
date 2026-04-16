@@ -13,9 +13,10 @@ export default function ConfirmDialog({ open, title, message, onConfirm, onCance
           <button className="dialog-btn cancel" onClick={onCancel}>
             Cancel
           </button>
-          <button className="dialog-btn confirm" onClick={onConfirm}>
+          {onConfirm && <button className="dialog-btn confirm" onClick={onConfirm}>
             Delete
           </button>
+          }
         </div>
       </div>
     </div>

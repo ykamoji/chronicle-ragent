@@ -131,7 +131,7 @@ export default function DocumentHub() {
             eventSourceRef.current = null;
             triggeredIngestion.current = false;
           }
-        }, 60000); // 60 second
+        }, 90000); // 90 second
       }
     } else {
       // Ingestion finished or not started

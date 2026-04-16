@@ -1,25 +1,8 @@
 {
-    "Novel.pdf": {
-        "short": [
-            "Explain the plot of the novel arc.",
-            "Who bets against David and why in the VIP room?",
-            "According to Derek, what was the outcome of his own one-on-one encounter with Charles?",
-            "Explain the final tournament setup. Who is in the crowd, VIP, participants and everyone invovled in this.",
-            "What makes the House of Heraknus legendary and feared?",
-            "What did David do that shocked the entire coliseum?",
-            "What is the 'Averna' barrier Marina erected for the coliseum?",
-            "Describe the 'Overdrive' state specifically for a Heraknus Alpha like Charles?",
-            "David's 'Kuret Storm' technique represents a synthesis of what two types of knowledge?",
-            "How did David made Charles reveal his weaknes during the match?",
-            "Why did Charles agree to move House Heraknus to the Island even before the final technical win was officially settled?",
-            "What was the final deal struck between David and Charles?"
-        ],
-        "complex": [
-            "Analyze David's decision-making process for shifting his strategy from evasion to systematically 'trimming' Charles’s tails. What three realizations did David make regarding Charles’s Kuret consumption, mental pain, and the 'habit' of healing that justified this stamina-draining approach?",
-            "In the VIP room during Chapter 12, there is a conflict regarding Charles's 'killing intent.' Contrast the moral stances of Vanessa and Kafar regarding the continuation of the match. How does Ned’s prioritization of 'global live streaming' influence the final decision to let the fight proceed?",
-            "Trace the identity of the 'Shadow Attacker' who preceded Blake. According to David's memories of his training with Hanson, how did this individual's treatment of Blake shape David’s long-term personal goals, and what specific 'Shadow rule' does David hold that gives him an advantage in knowing his allies' identities?",
-            "If David had chosen to use his 'Kuret Sphere' immediately instead of his 'Kuret Dome' in Chapter 5, why would that have been a tactical failure based on his subsequent discovery about the depth of Charles's 'Kuret Cocoon'?",
-            "Explain the technical evolution of David’s Kuret technique during his fight with Charles. Specifically, how did his observation of Charles’s 'mini-tornado' style Kuret leads him to develop his 'vibrating threads' form, and what physical limitation did he have to overcome to stabilize it?"
-        ]
-    }
+    "queries": [
+        "Explain the plot of the novel arc.",
+        "What did David do that shocked the entire coliseum ?",
+        "Explain the final tournament setup. Who is in the crowd, VIP, participants and everyone invovled in this.",
+        "What makes the House of Heraknus legendary and feared?"
+    ]
 }

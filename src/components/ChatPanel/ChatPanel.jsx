@@ -90,7 +90,6 @@ export default function ChatPanel() {
   const [isLoading, setIsLoading] = useState(false);
   const [agentSteps, setAgentSteps] = useState([]);
   const [sampleQueries, setSampleQueries] = useState([]);
-  const [allSampleQueries, setAllSampleQueries] = useState({});
   const [streamSessionId, setStreamSessionId] = useState(null);
   const [expandedSteps, setExpandedSteps] = useState({}); // Tracks which message reasoning is expanded
   const chatWindowRef = useRef(null);
@@ -141,34 +140,12 @@ export default function ChatPanel() {
     fetch("/sample_queries.json")
       .then((res) => res.json())
       .then((data) => {
-        setAllSampleQueries(data);
+        if (data && data.queries) {
+          setSampleQueries(data.queries);
+        }
       })
       .catch((err) => console.error("Failed to load sample queries:", err));
   }, []);
-
-  useEffect(() => {
-    if (!sessionId || !sessionList.length || !Object.keys(allSampleQueries).length) {
-      setSampleQueries([]);
-      return;
-    }
-
-    const currentSession = sessionList.find(s => s.session_id === sessionId);
-    const sourceFile = currentSession?.source_filename;
-
-    if (sourceFile && allSampleQueries[sourceFile]) {
-      const { short = [], complex = [] } = allSampleQueries[sourceFile];
-
-      // Shuffle helper (Fisher-Yates would be better, but this is simple)
-      const shuffle = (array) => [...array].sort(() => 0.5 - Math.random());
-
-      const pickedShort = shuffle(short).slice(0, 3);
-      const pickedComplex = shuffle(complex).slice(0, 1);
-
-      setSampleQueries([...pickedShort, ...pickedComplex]);
-    } else {
-      setSampleQueries([]);
-    }
-  }, [sessionId, sessionList, allSampleQueries]);
 
   const isStreamVisible = sessionId === streamSessionId;
 

@@ -418,6 +418,7 @@ def handle_session(session_id):
         
         # Start background cache load
         thread = threading.Thread(target=cache_session_docs_background, args=(session_id,))
+        thread.daemon = True
         thread.start()
         
         return jsonify(doc)

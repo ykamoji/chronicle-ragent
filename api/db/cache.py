@@ -63,7 +63,7 @@ def cache_session_docs_background(session_id: str):
              
         cursor = vector_col.find(
             {"session_id": {"$in": [session_id]}},
-            {"text": 1, "chapter": 1, "parent_chapter_index": 1, "pov": 1, "_id": 0}
+            {"embedding": 1, "text": 1, "chapter": 1, "parent_chapter_index": 1, "pov": 1, "_id": 0}
         )
         docs = list(cursor)
         session_cache.set_vector_docs(session_id, docs)

@@ -20,7 +20,7 @@ def perform_keyword_search(query: str, session_id: str, limit: int = 5) -> List[
             
         docs = list(collection.find(
             {"session_id": session_id},
-            {"text": 1, "chapter": 1, "_id": 0}
+            {"embedding": 1, "text": 1, "chapter": 1, "_id": 0}
         ))
         if docs:
             session_cache.set_vector_docs(session_id, docs)

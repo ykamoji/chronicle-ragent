@@ -36,20 +36,11 @@ export default function ChapterSummaries({ currentSummaries }) {
     }
   }
 
-  const getChapterNumber = (chapter) => {
-    const match = String(chapter).match(/\d+/);
-    return match ? parseInt(match[0], 10) : 0;
-  };
-
-  const sortedSummaries = [...(currentSummaries || [])].sort((a, b) => {
-    return getChapterNumber(a.chapter) - getChapterNumber(b.chapter);
-  });
-
   return (
     <>
       <h2>Chapters <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>(summaries)</span></h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
-        {sortedSummaries.map((item, idx) => {
+        {currentSummaries?.map((item, idx) => {
           const chapterName = item.chapter !== "" ? item.chapter : `Chapter ${idx + 1}`;
           return (
             <details

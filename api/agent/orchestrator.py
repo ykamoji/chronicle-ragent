@@ -229,15 +229,14 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                 if chat_name:
                     chat_name = chat_name.strip()
                     # Generate a chat name from the final response (in-stream)
-                    success = memory.set_chat_name(session_id, chat_name)
+                    memory.set_chat_name(session_id, chat_name)
 
-                    if success:
-                        yield json.dumps({
-                            "type": "chat_name",
-                            "chat_name": chat_name,
-                            "session_id": session_id,
-                            "time": datetime.now(timezone.utc).isoformat()
-                        })
+                    yield json.dumps({
+                        "type": "chat_name",
+                        "chat_name": chat_name,
+                        "session_id": session_id,
+                        "time": datetime.now(timezone.utc).isoformat()
+                    })
 
                 memory.add_message(session_id, "Agent", agent_answer, is_hidden=False, model_name=model_name, total_time=total_time)
 

@@ -126,7 +126,7 @@ def chunk_by_chapter(text: str) -> List[str]:
     return chapters
 
 if __name__ == "__main__":
-    text = extract_text_from_pdf("public/book_5_arc_1.pdf")
+    text = extract_text_from_pdf("public/Novel.pdf")
     chapters = chunk_by_chapter(text)
     print(len(chapters))
     print("\n")

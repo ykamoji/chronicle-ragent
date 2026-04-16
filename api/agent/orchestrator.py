@@ -2,12 +2,20 @@ import os
 import re
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from google import genai
 from google.genai import types
 from api.agent.tools import TOOLS
 from api.agent.memory import memory
 from api.config.settings import app_settings
+
+# Global set to track session IDs that should be interrupted
+active_interrupts = set()
+
+def interrupt_agent(session_id: str):
+    """Signals that the agent run for the given session should be stopped."""
+    active_interrupts.add(session_id)
+    logger.info(f"Interrupt signaled for session: {session_id}")
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +46,8 @@ Rules:
 2. The Action must be strictly formatted as tool_name[arguments].
 3. DO NOT output an Observation yourself. Stop generating after the Action. The system will provide the Observation.
 4. When you have enough information, use 'finish[your answer]' to return the answer to the user.
+5. FIRST QUERY RULE: If this is the FIRST message of the conversation, the 'finish' action must include a concise 4-6 word title followed by the answer, separated by a double pipe (||). 
+   Example: Action: finish[The Secret of Ravenswood || The murderer was the gardener.]
 """
 
 config = types.GenerateContentConfig(
@@ -113,6 +123,17 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
         current_prompt = prompt
 
         for step in range(max_steps):
+            # Check for interrupt signal
+            if session_id in active_interrupts:
+                active_interrupts.remove(session_id)
+                logger.info(f"Agent run interrupted for session: {session_id}")
+                yield json.dumps({
+                    "type": "error",
+                    "content": "Interrupted by user.",
+                    "time": datetime.now(timezone.utc).isoformat()
+                })
+                return
+
             # Call LLM
             try:
                 response = client.models.generate_content(
@@ -133,7 +154,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                                     "type": "thought",
                                     "content": thought_text,
                                     "action": None,
-                                    "time": datetime.now().isoformat()
+                                    "time": datetime.now(timezone.utc).isoformat()
                                 })
                         else:
                             response_text += part.text
@@ -150,7 +171,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                 logger.error(f"LLM call failed: {e}")
                 memory.add_message(session_id, "Agent", f"LLM Error: {e}", is_hidden=True)
                 memory.log_query_analytics(session_id, query, query_analytics)
-                yield json.dumps({"type": "error", "content": f"LLM error: {e}", "time": datetime.now().isoformat()})
+                yield json.dumps({"type": "error", "content": f"LLM error: {e}", "time": datetime.now(timezone.utc).isoformat()})
                 return
 
             current_prompt += llm_text + "\n"
@@ -174,7 +195,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                 "type": "thought",
                 "content": thought_text if thought_text else "Thinking...",
                 "action": f"{tool_name}[{tool_arg}]" if tool_name else None,
-                "time": datetime.now().isoformat()
+                "time": datetime.now(timezone.utc).isoformat()
             })
 
             # Save the message without Action: finish[...] to avoid redundancy in history
@@ -200,26 +221,33 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
                 total_time = time.time() - start_time
                 model_name = app_settings.get_model_info().get("name", "Unknown Model")
 
-                memory.add_message(session_id, "Agent", tool_arg, is_hidden=False, model_name=model_name, total_time=total_time)
+                chat_name = None
+                agent_answer = tool_arg
+                if "||" in tool_arg:
+                    chat_name, agent_answer = tool_arg.split("||", 1)
+
+                if chat_name:
+                    chat_name = chat_name.strip()
+                    # Generate a chat name from the final response (in-stream)
+                    memory.set_chat_name(session_id, chat_name)
+
+                    yield json.dumps({
+                        "type": "chat_name",
+                        "chat_name": chat_name,
+                        "session_id": session_id,
+                        "time": datetime.now(timezone.utc).isoformat()
+                    })
+
+                memory.add_message(session_id, "Agent", agent_answer, is_hidden=False, model_name=model_name, total_time=total_time)
 
                 yield json.dumps({
                     "type": "answer",
-                    "content": tool_arg,
+                    "content": agent_answer,
                     "session_id": session_id,
                     "model_name": model_name,
                     "total_time": round(total_time, 2),
-                    "time": datetime.now().isoformat()
-                })
-
-                # Generate a chat name from the final response (in-stream)
-                new_chat_name = memory.set_chat_name(session_id, tool_arg)
-                if new_chat_name:
-                    yield json.dumps({
-                        "type": "chat_name",
-                        "chat_name": new_chat_name,
-                        "session_id": session_id,
-                        "time": datetime.now().isoformat()
-                    })
+                    "time": datetime.now(timezone.utc).isoformat()
+                })                   
                 
                 # Flush analytics data
                 memory.log_query_analytics(session_id, query, query_analytics)
@@ -228,7 +256,7 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
             # logger.info(f"tool {tool_name} args {tool_arg}")
             
             # Yield tool call event
-            yield json.dumps({"type": "tool", "tool": tool_name, "args": tool_arg, "time": datetime.now().isoformat()})
+            yield json.dumps({"type": "tool", "tool": tool_name, "args": tool_arg, "time": datetime.now(timezone.utc).isoformat()})
 
             # Run the tool
             if tool_name in TOOLS:
@@ -245,14 +273,14 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
             trimmed_observations = trim_observation_block(obs_text.strip())
             if trimmed_observations:
                 memory.add_message(session_id, "System", trimmed_observations, is_hidden=True)
-                yield json.dumps({"type": "observation", "content": trimmed_observations, "time": datetime.now().isoformat()})
+                yield json.dumps({"type": "observation", "content": trimmed_observations, "time": datetime.now(timezone.utc).isoformat()})
 
             time.sleep(app_settings.get_delay())
 
         final_msg = "Agent reached maximum steps without finding a final answer."
         logger.warning(final_msg)
         memory.log_query_analytics(session_id, query, query_analytics)
-        yield json.dumps({"type": "answer", "content": final_msg, "session_id": session_id, "time": datetime.now().isoformat()})
+        yield json.dumps({"type": "answer", "content": final_msg, "session_id": session_id, "time": datetime.now(timezone.utc).isoformat()})
 
     except Exception as e:
         logger.error(f"Agent stream error: {e}")
@@ -260,4 +288,4 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
             memory.log_query_analytics(session_id, query, query_analytics)
         except Exception:
             pass
-        yield json.dumps({"type": "error", "content": f"Agent error: {e}", "time": datetime.now().isoformat()})
+        yield json.dumps({"type": "error", "content": f"Agent error: {e}", "time": datetime.now(timezone.utc).isoformat()})

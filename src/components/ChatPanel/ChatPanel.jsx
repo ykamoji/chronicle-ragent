@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import { CollapsibleObservation } from "./Observations/Observation";
 import "./ChatPanel.css";
 import { API_URL } from "../../api";
+import { LOCAL_TIMEZONE } from "../../timezone";
 
 
 // Direct to Flask for SSE streaming (bypasses Next.js proxy buffering)
@@ -40,7 +41,8 @@ const formatTime = (isoString) => {
   if (!isoString) return "";
   try {
     const date = new Date(isoString);
-    return date.toLocaleString("en-GB", {
+    return date.toLocaleString("en-US", {
+      timeZone: LOCAL_TIMEZONE,
       day: "2-digit",
       month: "short",   // Apr, May, etc.
       hour: "2-digit",
@@ -56,7 +58,8 @@ const formatTimeWithSeconds = (isoString) => {
   if (!isoString) return "";
   try {
     const date = new Date(isoString);
-    return date.toLocaleTimeString([], {
+    return date.toLocaleTimeString("en-US", {
+      timeZone: LOCAL_TIMEZONE,
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
@@ -85,21 +88,62 @@ export default function ChatPanel() {
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [agentSteps, setAgentSteps] = useState([]);
+  const [sampleQueries, setSampleQueries] = useState([]);
   const [streamSessionId, setStreamSessionId] = useState(null);
   const [expandedSteps, setExpandedSteps] = useState({}); // Tracks which message reasoning is expanded
   const chatWindowRef = useRef(null);
   const liveThoughtsRef = useRef(null);
   const {
     sessionId, setSessionId, messages, currentSummaries,
-    setMessages, isSessionLoading, loadSession,
+    setMessages, isSessionLoading, loadSession, sessionList, setSessionList,
     setActiveIngestionTab, setHighlightChapter, setReferenceText,
-    setIsPanelExpanded, fetchSessions
+    setIsPanelExpanded
   } = useSession();
+
+  const abortControllerRef = useRef(null);
+
+  const agentAnswerRef = useRef(false);
+  const agentChatRef = useRef(sessionList.find(s => s.session_id === sessionId)?.chat_name)
+
+  const handleStop = async () => {
+    if (!sessionId) return;
+
+    // 1. Signal backend to stop
+    try {
+      await fetch(`${API_URL}/query/stop`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+    } catch (e) {
+      console.warn("Stop signal failed:", e);
+    }
+
+    // 2. Abort frontend request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort("User stopped generation");
+    }
+
+    // 3. Cleanup and UI state
+    setIsLoading(false);
+    await callCleanup(sessionId);
+  };
 
   const currentSessionIdRef = useRef(sessionId);
   useEffect(() => {
     currentSessionIdRef.current = sessionId;
   }, [sessionId]);
+
+  useEffect(() => {
+    fetch("/sample_queries.json")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.queries) {
+          setSampleQueries(data.queries);
+        }
+      })
+      .catch((err) => console.error("Failed to load sample queries:", err));
+  }, []);
 
   const isStreamVisible = sessionId === streamSessionId;
 
@@ -179,12 +223,15 @@ export default function ChatPanel() {
     if (!userQuery) return;
 
     setQuery("");
-    setMessages((prev) => [...prev, { role: "user", content: userQuery, timestamp: new Date().toISOString() }]);
+    setMessages((prev) => [...prev, { role: "user", content: userQuery, timestamp: new Date().toLocaleString("en-US", { timeZone: LOCAL_TIMEZONE }) }]);
     setIsLoading(true);
     setAgentSteps([]); // Clear previous steps at start of new query
     setStreamSessionId(sessionId || null);
 
     let currentSessionId = sessionId;
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     try {
       const payload = { query: userQuery };
@@ -194,6 +241,7 @@ export default function ChatPanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
 
       if (!res.ok) throw new Error("API request failed");
@@ -264,8 +312,7 @@ export default function ChatPanel() {
                 break;
 
               case "chat_name":
-                // Session title is now set in DB, refresh sidebar list
-                await fetchSessions();
+                agentChatRef.current = event.chat_name
                 break;
 
               case "error":
@@ -302,11 +349,9 @@ export default function ChatPanel() {
         if (currentSessionIdRef.current === currentSessionId) {
           setMessages((prev) => [
             ...prev,
-            { role: "agent", content: finalAnswer, timestamp: new Date().toISOString(), steps: currentSteps, model_name: responseModel, total_time: responseTime },
+            { role: "agent", content: finalAnswer, timestamp: new Date().toLocaleString("en-US", { timeZone: LOCAL_TIMEZONE }), steps: currentSteps, model_name: responseModel, total_time: responseTime },
           ]);
-          if (currentSessionId) {
-            await loadSession(currentSessionId, true);
-          }
+          agentAnswerRef.current = true
         }
       } else {
         // Did not finish — ensure cleanup
@@ -314,12 +359,31 @@ export default function ChatPanel() {
       }
 
     } catch (err) {
-      console.error(err);
+      console.log("Error ", err);
       await callCleanup(currentSessionId);
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+
+    if (!isLoading && agentAnswerRef.current && sessionId) {
+      const task = async () => await loadSession(sessionId, true);
+      task()
+      if (agentChatRef.current !== null) {
+        setSessionList(prev =>
+          prev.map(s =>
+            s.session_id === sessionId
+              ? { ...s, chat_name: agentChatRef.current }
+              : s
+          )
+        );
+      }
+
+      agentAnswerRef.current = false
+    }
+  }, [isLoading])
 
   // const scrollToBottom = () => {
   //   if (liveThoughtsRef.current) {
@@ -436,7 +500,7 @@ export default function ChatPanel() {
               <div key={i} className={`agent-step ${step.type}`}>
                 {step.type === "thought" && (
                   <div>
-                    <span className="step-text">{<ReactMarkdown>{step.content}</ReactMarkdown> || "Thinking"}</span>
+                    <span className="step-text">{step.content || "Thinking"}</span>
                     {renderStepAction(step.action)}
                     <div style={{ opacity: 0.7 }}>{formatTimeWithSeconds(step.time)}</div>
                   </div>
@@ -505,6 +569,20 @@ export default function ChatPanel() {
         </div>
       )}
 
+      {!isLoading && sampleQueries.length > 0 && (
+        <div className="sample-queries-container">
+          {sampleQueries.map((q, idx) => (
+            <button
+              key={idx}
+              className="sample-query-chip"
+              onClick={() => handleSend(null, q)}
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+      )}
+
       <form className="chat-input-area" onSubmit={handleSend}>
         <input
           type="text"
@@ -513,9 +591,15 @@ export default function ChatPanel() {
           onChange={(e) => setQuery(e.target.value)}
           disabled={isLoading || isSessionLoading}
         />
-        <button type="submit" disabled={isLoading || isSessionLoading || !query.trim()} style={{ background: isLoading ? 'gray' : '#000' }}>
-          Ask
-        </button>
+        {isLoading ? (
+          <button type="button" className="stop-btn" onClick={handleStop} >
+            <span className="stop-icon"></span>
+          </button>
+        ) : (
+          <button type="submit" disabled={isSessionLoading}>
+            Ask
+          </button>
+        )}
       </form>
     </main>
   );

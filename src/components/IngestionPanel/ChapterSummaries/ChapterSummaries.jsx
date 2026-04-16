@@ -38,9 +38,9 @@ export default function ChapterSummaries({ currentSummaries }) {
 
   return (
     <>
-      <h2>Chapter Summaries</h2>
+      <h2>Chapters <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>(summaries)</span></h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
-        {currentSummaries.map((item, idx) => {
+        {currentSummaries?.map((item, idx) => {
           const chapterName = item.chapter !== "" ? item.chapter : `Chapter ${idx + 1}`;
           return (
             <details

@@ -1,23 +1,19 @@
+from api.db.cache import cache_session_docs_background
+import logging
+import threading
+import time
+import json
 from api.agent.tools import TOOLS_NAME_MAP
 from dotenv import load_dotenv
 load_dotenv()
-import time
-import json
-import hashlib
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
-from api.agent.orchestrator import run_agent_stream
+from api.agent.orchestrator import run_agent_stream, interrupt_agent
 from api.agent.memory import memory
-from api.ingestion.parser import extract_text_from_pdf, chunk_text, chunk_by_chapter
-from api.ingestion.extractor import extract_metadata
-from api.ingestion.embedder import get_embedding
+from api.ingestion.worker import start_ingession
 from api.db.mongo import mongo
 from api.db.cache import session_cache
 from api.config.settings import app_settings
-import logging
-import os
-import threading
-from tqdm import tqdm
 
 # Basic Logging setup
 logging.basicConfig(level=logging.INFO)
@@ -63,7 +59,6 @@ def health_check():
         logger.error(f"Failed to connect to MongoDB: {e}")
         return jsonify({"status": "unhealthy", "details":details, "mongo_connected": False})
 
-        
 
 @app.route("/settings", methods=["GET", "PUT"])
 def handle_settings():
@@ -84,6 +79,10 @@ def handle_settings():
     if "delayOverride" in data:
         val = data["delayOverride"]
         app_settings.set_delay_override(val if val is not None and val != "" else None)
+
+    if "embedder" in data and isinstance(data["embedder"], dict):
+        if "parallel" in data["embedder"]:
+            app_settings.set_embedder_parallel(data["embedder"]["parallel"])
 
     return jsonify(app_settings.to_dict())
 
@@ -145,6 +144,18 @@ def cleanup_failed_query():
     return jsonify({"removed": removed})
 
 
+@app.route("/query/stop", methods=["POST"])
+def stop_query_agent():
+    """Signals the agent to stop processing for the given session."""
+    data = request.get_json()
+    if not data or "session_id" not in data:
+        return jsonify({"error": "Missing 'session_id' field"}), 400
+
+    session_id = data["session_id"]
+    interrupt_agent(session_id)
+    return jsonify({"message": f"Interrupt signaled for session {session_id}"})
+
+
 @app.route("/ingest-progress/<session_id>", methods=["GET"])
 def ingest_progress(session_id):
     """Streams ingestion progress for a specific session."""
@@ -181,151 +192,6 @@ def ingest_progress(session_id):
     })
 
 
-def process_file_background(text_content: str, session_id: str):
-    """Background task to chunk, embed, and store document segments."""
-    try:
-        vector_col = mongo.get_vector_collection()
-        sess_col = mongo.get_sessions_collection()
-        if vector_col is None or sess_col is None:
-            logger.error("MongoDB not connected. Aborting ingestion.")
-            return
-
-        # Start extraction phase
-        sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress": {"phase": "extraction", "current": 0, "total": 0}}})
-
-        chapters = chunk_by_chapter(text_content)
-        total_chapters = len(chapters)
-        logger.info(f"Text parsed into {total_chapters} chapters for metadata extraction.")
-
-        # Update total chapters
-        sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.total": total_chapters}})
-
-        chapter_hashes = []
-
-        # Phase 1: Metadata Extraction
-        for i, chapter_text in enumerate(tqdm(chapters, desc="Extracting Metadata")):
-            # Update current progress
-            sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.current": i + 1}})
-
-            c_hash = hashlib.sha256(chapter_text.encode('utf-8')).hexdigest()
-            chapter_hashes.append(c_hash)
-            
-            existing = vector_col.find_one({"chapter_hash": c_hash})
-            if existing:
-                logger.info(f"Chapter {i+1} already in DB. Associating with current session.")
-                vector_col.update_many({"chapter_hash": c_hash}, {"$addToSet": {"session_id": session_id}})
-                
-                # Copy metadata from existing session if available
-                chapter_name = existing.get("chapter")
-                existing_sessions = existing.get("session_id", [])
-                if chapter_name and existing_sessions:
-                    # Find a session that has this chapter in its metadata and pull only that record
-                    source_sess_doc = sess_col.find_one({
-                        "session_id": {"$in": existing_sessions},
-                        "metadata.chapter": chapter_name
-                    }, {"metadata.$": 1})
-                    
-                    if source_sess_doc and "metadata" in source_sess_doc:
-                        item_to_copy = source_sess_doc["metadata"][0]
-                        # Push to the current session
-                        sess_col.update_one({"session_id": session_id}, {"$push": {"metadata": item_to_copy}})
-                        logger.info(f"Copied metadata for '{chapter_name}' from an existing session.")
-
-                if not existing_sessions:
-                    metadata = extract_metadata(chapter_text)
-                    chapter_summary = metadata.get("summary", "")
-                    if chapter_summary:
-                        sess_col.update_one({"session_id": session_id}, 
-                        {"$push": 
-                            {"metadata": {
-                                "chapter": metadata.get("chapter", "Unknown"), 
-                                "summary": chapter_summary,
-                                "characters": metadata.get("characters", [])
-                                }
-                            }
-                        })
-                    time.sleep(app_settings.get_delay())
-                    
-                # We don't skip entirely; we still want to check if embeddings are needed in Phase 2
-                continue
-
-            try:
-                metadata = extract_metadata(chapter_text)
-                
-                chapter_summary = metadata.get("summary", "")
-                if chapter_summary:
-                    sess_col.update_one({"session_id": session_id}, 
-                    {"$push": 
-                        {"metadata": {
-                            "chapter": metadata.get("chapter", "Unknown"), 
-                            "summary": chapter_summary,
-                            "characters": metadata.get("characters", [])
-                            }
-                        }
-                    })
-
-                sub_chunks = chunk_text(chapter_text, target_tokens=500)
-                
-                for j, sub_chunk in enumerate(sub_chunks):
-                    doc = {
-                        "text": sub_chunk,
-                        "embedding": None,
-                        "chapter": metadata.get("chapter", "Unknown"),
-                        "parent_chapter_index": j,
-                        "chapter_hash": c_hash,
-                        "session_id": [session_id]
-                    }
-                    vector_col.insert_one(doc)
-                
-                time.sleep(app_settings.get_delay())
-            except Exception as e:
-                logger.error(f"Failed processing chapter {i}: {e}")
-
-        # Phase 2: Embedding Generation & Retries
-        logger.info("Phase 2: Generating embeddings...")
-        missing_docs = list(vector_col.find({"chapter_hash": {"$in": chapter_hashes}, "embedding": None}))
-        total_embeddings = len(missing_docs)
-        logger.info(f"Found {total_embeddings} chunks needing embeddings.")
-        
-        # Switch to embedding phase
-        sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress": {"phase": "embedding", "current": 0, "total": total_embeddings}}})
-
-        if total_embeddings == 0:
-             sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.phase": "complete"}})
-        else:
-            for idx, doc in enumerate(tqdm(missing_docs, desc="Generating Embeddings")):
-                # Update current progress
-                sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.current": idx + 1}})
-
-                doc_id = doc["_id"]
-                text_to_embed = doc["text"]
-                success = False
-                for attempt in range(3):
-                    try:
-                        emb = get_embedding(text_to_embed)
-                        vector_col.update_one({"_id": doc_id}, {"$set": {"embedding": emb}})
-                        success = True
-                        break
-                    except Exception as e:
-                        logger.warning(f"Embedding failed (Attempt {attempt+1}/3) for doc {doc_id}: {e}")
-                        time.sleep(2)
-                
-                if not success:
-                    logger.error(f"Failed to generate embedding for doc {doc_id} after 3 attempts.")
-                
-                time.sleep(10) # Reduced for better demo
-            
-        # Finalize progress
-        sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.phase": "complete"}})
-
-        # Invalidate cache so the next query pulls fresh data from MongoDB
-        session_cache.invalidate(session_id)
-        logger.info("Ingestion complete. Cache invalidated.")
-    except Exception as e:
-        logger.error(f"Ingestion pipeline failed: {e}")
-        sess_col.update_one({"session_id": session_id}, {"$set": {"ingestion_progress.phase": "failed", "error": str(e)}})
-
-
 @app.route("/ingest", methods=["POST"])
 def ingest_document():
     """Ingests a document. If file is a PDF, routes to the PDF parser. Runs processing in background."""
@@ -340,42 +206,13 @@ def ingest_document():
     if not session_id:
         session_id = memory.create_conversation()
 
-    # Save source filename to session document if provided
-    if source_filename:
-        sess_col = mongo.get_sessions_collection()
-        if sess_col is not None:
-            sess_col.update_one(
-                {"session_id": session_id},
-                {"$set": {"source_filename": source_filename}},
-                upsert=True
-            )
-
-    text_to_process = ""
-
+    temp_path = None
     if file:
-        if file.filename.endswith('.pdf'):
-            # Save temporary file to parse
-            temp_path = f"/tmp/{file.filename}"
-            file.save(temp_path)
-
-            text_to_process = extract_text_from_pdf(temp_path)
-            os.remove(temp_path)
-        elif file.filename.endswith('.txt'):
-            content = file.read()
-            text_to_process = content.decode('utf-8')
-        else:
-            return jsonify({"error": "Unsupported file format. Use .pdf or .txt"}), 400
-
-    if raw_text:
-        text_to_process += "\n\n" + raw_text
-
-    text_to_process = text_to_process.strip()
-    if not text_to_process:
-        return jsonify({"error": "Extracted text is empty."}), 400
+        temp_path = f"/tmp/{file.filename}"
+        file.save(temp_path)
 
     # Start ingestion in a daemon thread so it runs in background
-    thread = threading.Thread(target=process_file_background, args=(text_to_process, session_id))
-    thread.daemon = True
+    thread = threading.Thread(target=start_ingession, args=(temp_path, raw_text, session_id, source_filename))
     thread.start()
 
     return jsonify({"message": "Document accepted. Ingestion running in the background.", "session_id": session_id})
@@ -401,26 +238,6 @@ def get_messages(session_id):
     chat_logs = memory.get_history(session_id)
     return jsonify(chat_logs)
 
-def cache_session_docs_background(session_id: str):
-    """Background task to load vector docs into cache."""
-    try:
-        vector_col = mongo.get_vector_collection()
-        if vector_col is None:
-            return
-            
-        # Skip if already cached
-        if session_cache.get_vector_docs(session_id) is not None:
-            return
-             
-        cursor = vector_col.find(
-            {"session_id": {"$in": [session_id]}},
-            {"embedding": 1, "text": 1, "chapter": 1, "_id": 0}
-        )
-        docs = list(cursor)
-        session_cache.set_vector_docs(session_id, docs)
-        logger.info(f"Background cache loaded {len(docs)} docs for session {session_id}")
-    except Exception as e:
-        logger.error(f"Failed to background cache session {session_id}: {e}")
 
 @app.route("/vectors/<session_id>", methods=["GET"])
 def get_vectors(session_id):
@@ -557,20 +374,22 @@ def get_analytics():
 
 @app.route("/sessions/<session_id>", methods=["GET", "DELETE"])
 def handle_session(session_id):
+   
     if request.method == "GET":
         collection = mongo.get_sessions_collection()
+        
         if collection is None:
             return jsonify({"error": "DB not connected"}), 503
-
+        
         doc = collection.find_one({"session_id": session_id}, {"_id": 0})
         if not doc:
             return jsonify({"error": "Session not found"}), 404
-
+        
         # Start background cache load
         thread = threading.Thread(target=cache_session_docs_background, args=(session_id,))
         thread.daemon = True
         thread.start()
-
+        
         return jsonify(doc)
 
     elif request.method == "DELETE":
@@ -602,4 +421,4 @@ def handle_session(session_id):
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(host="127.0.0.1", port=5000, debug=True, use_reloader=False)

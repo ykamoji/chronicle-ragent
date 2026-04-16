@@ -14,7 +14,6 @@ export default function Sidebar() {
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const { sessionId, loadSession, startNewChat, sessionList, setSessionList, fetchSessions } = useSession();
-  const prevSessionIdRef = useRef(null);
   const menuRef = useRef(null);
 
   const handleDeleteClick = (e, id) => {
@@ -45,15 +44,7 @@ export default function Sidebar() {
 
   useEffect(() => {
     fetchSessions();
-  }, [fetchSessions]);
-
-  // Re-fetch session list ONLY when a new session is originated
-  useEffect(() => {
-    if (sessionId && !prevSessionIdRef.current) {
-      fetchSessions();
-    }
-    prevSessionIdRef.current = sessionId;
-  }, [sessionId]);
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {

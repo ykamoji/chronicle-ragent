@@ -19,7 +19,7 @@
             "thinking": true
         },
         {
-            "name": "Gemini 3.1 Flash Preview",
+            "name": "Gemini 3 Flash Preview",
             "model": "gemini-3-flash-preview",
             "delay": 30,
             "thinking": true
@@ -40,7 +40,8 @@
             "name": "Gemma 4 31B",
             "model": "gemma-4-31b-it",
             "delay": 10,
-            "thinking": true
+            "thinking": true,
+            "default": true
         },
         {
             "name": "Gemma 4 26B",
@@ -54,5 +55,8 @@
             "delay": 10,
             "thinking": false
         }
-    ]
+    ],
+    "embedder": {
+        "parallel": true
+    }
 }

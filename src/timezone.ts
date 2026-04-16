@@ -1,0 +1,1 @@
+export const LOCAL_TIMEZONE = Intl?.DateTimeFormat?.().resolvedOptions?.().timeZone || "UTC";

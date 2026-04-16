@@ -8,7 +8,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 def tool_vector_search(query: str, session_id: str) -> tuple[str, dict]:
-    """Semantically searches the document text based on meaning."""
+    """
+    Semantically searches the story text using vector embeddings. 
+    Best for finding themes, moods, or general plot points.
+    """
+    
     import time
     start_time = time.time()
     logger.info(f"Running vector search for: {query} (Session: {session_id})")
@@ -32,7 +36,11 @@ def tool_vector_search(query: str, session_id: str) -> tuple[str, dict]:
         return f"Error executing vector search: {str(e)}", metrics
 
 def tool_keyword_search(query: str, session_id: str) -> tuple[str, dict]:
-    """Searches for exact matches or regex keywords in the documents."""
+    """
+    Searches for exact matches or regex keywords. 
+    Use this for rare words, specific item names, or exact phrases.
+    """
+
     import time
     start_time = time.time()
     logger.info(f"Running keyword search for: {query} (Session: {session_id})")
@@ -56,7 +64,10 @@ def tool_keyword_search(query: str, session_id: str) -> tuple[str, dict]:
         return f"Error executing keyword search: {str(e)}", metrics
 
 def tool_character_lookup(name: str, session_id: str) -> tuple[str, dict]:
-    """Looks up documents mentioning a specific character by name."""
+    """
+    Looks up all documents and mentions related to a specific character by name.
+    """
+
     import time
     start_time = time.time()
     logger.info(f"Running character lookup for: {name} (Session: {session_id})")
@@ -80,7 +91,12 @@ def tool_character_lookup(name: str, session_id: str) -> tuple[str, dict]:
         return f"Error looking up character: {str(e)}", metrics
 
 def tool_summary(chapter: str, session_id: str) -> tuple[str, dict]:
-    """Retrieves the summary of a specific chapter from session metadata."""
+    """
+    Retrieves chapter summaries. 
+    If a chapter number is provided, returns that specific summary. 
+    If no chapter is provided, returns summaries for the entire book.
+    """
+
     import time
     start_time = time.time()
     

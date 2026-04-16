@@ -401,11 +401,11 @@ export default function ChatPanel() {
     if (!isLoading && agentAnswerRef.current && sessionId) {
       const task = async () => await loadSession(sessionId, true);
       task()
-      if (agentChatRef.current !== null) {
+      if (!!agentChatRef.current) {
         setSessionList(prev =>
           prev.map(s =>
             s.session_id === sessionId
-              ? { ...s, chat_name: agentChatRef.current }
+              ? { ...s, chat_name: agentChatRef.current || s.chat_name }
               : s
           )
         );

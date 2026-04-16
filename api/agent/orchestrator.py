@@ -98,7 +98,11 @@ def run_agent_stream(session_id: str, query: str, max_steps: int = 10):
     client = genai.Client(api_key=api_key)
 
     if app_settings.get_thinking():
+        logger.info("Thinking is enabled")
         config.thinking_config = thinking_config
+    else:
+        logger.info("Thinking is disabled")
+        config.thinking_config = None
     
     start_time = time.time()
     query_analytics = []

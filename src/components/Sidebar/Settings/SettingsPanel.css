@@ -284,6 +284,19 @@
   margin-top: 2px;
 }
 
+/* ── Sliding Container ── */
+.sliding-container {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
+}
+
+.sliding-container.open {
+  max-height: 140px;
+  opacity: 1;
+}
+
 /* ── Toggle Switch ── */
 .toggle-row {
   display: flex;

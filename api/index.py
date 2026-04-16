@@ -80,9 +80,13 @@ def handle_settings():
         val = data["delayOverride"]
         app_settings.set_delay_override(val if val is not None and val != "" else None)
 
-    if "embedder" in data and isinstance(data["embedder"], dict):
-        if "parallel" in data["embedder"]:
-            app_settings.set_embedder_parallel(data["embedder"]["parallel"])
+    if "ingestion" in data and isinstance(data["ingestion"], dict):
+        if "parallel" in data["ingestion"]:
+            app_settings.set_ingestion_parallel(data["ingestion"]["parallel"])
+        if "extractorRateLimit" in data["ingestion"]:
+            app_settings.set_extractor_rate_limit(data["ingestion"]["extractorRateLimit"])
+        if "embedderRateLimit" in data["ingestion"]:
+            app_settings.set_embedder_rate_limit(data["ingestion"]["embedderRateLimit"])
 
     return jsonify(app_settings.to_dict())
 

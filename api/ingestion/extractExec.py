@@ -5,6 +5,7 @@ from api.ingestion.extractor import extract_metadata
 from api.ingestion.parser import chunk_text
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from api.ingestion.RateLimiter import RateLimiter
+from api.config.settings import app_settings
 
 MAX_WORKERS = 3  # Tune based on API limits
 MAX_RETRIES = 3
@@ -13,7 +14,7 @@ CONCURRENCY_LIMIT = 3  # Usually <= MAX_WORKERS
 rate_semaphore_extractor = threading.Semaphore(CONCURRENCY_LIMIT)
 progress_lock_extractor = threading.Lock()
 
-rate_limiter_extractor = RateLimiter(8, 60)
+rate_limiter_extractor = RateLimiter(app_settings.get_extractor_rate_limit(), 60)
 
 current_progress = 0
 
@@ -53,7 +54,8 @@ def extract_metadata_invocation(chapter_text, i, sess_col, session_id, vector_co
     success = False
     for attempt in range(3):
         try:
-            # Enforce rate limit (8/min)
+            # Enforce rate limit (/min)
+            rate_limiter_extractor.max_calls = app_settings.get_extractor_rate_limit()
             rate_limiter_extractor.acquire()
 
             # Enforce concurrency limit
@@ -63,9 +65,9 @@ def extract_metadata_invocation(chapter_text, i, sess_col, session_id, vector_co
             if success: break
 
         except Exception as e:
-            logger.warning(f"Embedding failed (Attempt {attempt + 1}/{MAX_RETRIES}) for chapter {i}: {e}")
+            logger.warning(f"Extraction failed (Attempt {attempt + 1}/{MAX_RETRIES}): {e}")
             if attempt < MAX_RETRIES - 1:
-                time.sleep(2 * (attempt + 1))  # exponential backoff
+                time.sleep(4 * (attempt + 1))  # exponential backoff
 
     if not success:
         cleanup_session_data(session_id, vector_col, sess_col, logger)

@@ -22,14 +22,14 @@ const formatDate = (isoDate) => {
 };
 
 const handleDownload = async () => {
-  const response = await fetch("/book_5_arc_1.pdf");
+  const response = await fetch("/Novel.pdf");
   const blob = await response.blob();
 
   const url = window.URL.createObjectURL(blob);
 
   const a = document.createElement("a");
   a.href = url;
-  a.download = "book_5_arc_1.pdf";
+  a.download = "Novel.pdf";
   document.body.appendChild(a);
   a.click();
 
@@ -150,10 +150,10 @@ export default function DocumentHub() {
   };
 
   const handleSampleUpload = async () => {
-    const response = await fetch("/book_5_arc_1.pdf");
+    const response = await fetch("/Novel.pdf");
     const blob = await response.blob();
 
-    const file = new File([blob], "book_5_arc_1.pdf", {
+    const file = new File([blob], "Novel.pdf", {
       type: "application/pdf",
     });
 
@@ -391,7 +391,7 @@ export default function DocumentHub() {
                 <path d="M14 2v6h6" fill="#ef5350" />
                 <text x="6.5" y="17" fontSize="6" fontFamily="Arial, sans-serif" fill="white">PDF</text>
               </svg>
-              <span style={{ fontSize: "0.8rem", textAlign: "center" }}>Book 5 Arc 1.pdf</span>
+              <span style={{ fontSize: "0.8rem", textAlign: "center" }}>Novel.pdf</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
               <button

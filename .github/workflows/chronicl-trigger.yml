@@ -2,21 +2,17 @@ name: Chronicle Health Trigger
 
 on:
   schedule:
-    - cron: '*/5 * * * *' # Runs every 5 minutes to prevent Render from sleeping
-  workflow_dispatch:      # Allows manual triggering from the Actions tab
+    # Using specific minutes to avoid "top of the hour" traffic
+    - cron: '3,13,23,33,43,53 * * * *'
+  # Allows manual triggering from the Actions tab
+  workflow_dispatch:
 
 jobs:
   ping:
     name: Ping Health Endpoint
     runs-on: ubuntu-latest
     steps:
-      - name: GET MCP Health Check
+      - name: GET Health Check
         run: |
-          curl -f --retry 5 --retry-delay 10 --max-time 60 "https://chronicle-mcp.onrender.com/health"
-
-      - name: Wait 1 minute
-        run: sleep 60
-
-      - name: GET Ragent Health Check
-        run: |
-          curl -f --retry 5 --retry-delay 10 --max-time 60 "https://chronicle-ragent.onrender.com"
+          curl -f --retry 3 --max-time 60 "https://chronicle-mcp.onrender.com/health"
+          curl -f --retry 3 --max-time 60 "https://chronicle-ragent.onrender.com"

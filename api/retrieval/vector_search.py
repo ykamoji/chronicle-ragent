@@ -72,12 +72,10 @@ def perform_vector_search(query: str, session_id: str, limit: int = 7) -> List[D
                 "path": "embedding",
                 "queryVector": query_embedding,
                 "numCandidates": 500,
-                "limit": 100
-            }
-        },
-        {
-            "$match": {
-                "session_id": session_id
+                "limit": 100,
+                "filter": {
+                    "session_id": session_id
+                }
             }
         },
         {

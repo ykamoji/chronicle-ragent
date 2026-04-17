@@ -257,6 +257,44 @@
   animation: indeterminate-slide 4s infinite linear;
 }
 
+.pdf-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  align-items: start;
+  padding-bottom: 8px;
+  white-space: nowrap;
+  scrollbar-width: thin;
+}
+
+.pdf-group {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px 8px;
+  margin-left: 150px;
+}
+
+.pdf-btn:hover {
+  background: none;
+  box-shadow: none;
+}
+
+.pdf-btn-mini {
+  color: var(--text-secondary);
+  background: none;
+}
+
+.pdf-btn-mini:hover {
+  transform: translateY(-1px);
+  background: #4f46e5;
+  color: white;
+}
+
 @keyframes indeterminate-slide {
   0% {
     left: -40%;

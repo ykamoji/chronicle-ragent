@@ -8,6 +8,10 @@ def tokenize(text: str) -> List[str]:
     """Standard tokenizer for BM25: lowercase and split into words."""
     return re.findall(r'\w+', text.lower())
 
+def normalize_query(text: str) -> str:
+    # Replace all non-word separators with space
+    return re.sub(r"[^\w.+#-]+", " ", text.lower()).strip()
+
 def perform_keyword_search(query: str, session_id: str, limit: int = 5) -> List[Dict[str, Any]]:
     """Performs a text search using MongoDB regex or session cache."""
     # 1. Check Cache first
@@ -57,7 +61,9 @@ def perform_keyword_search(query: str, session_id: str, limit: int = 5) -> List[
     bm25 = BM25Okapi(corpus_tokens)
     
     # Tokenize the user query (e.g., "Heraknus feared strength")
-    tokenized_query = tokenize(query)
+    normalized_query = normalize_query(query)
+    
+    tokenized_query = tokenize(normalized_query)
     
     # Get scores for all documents
     doc_scores = bm25.get_scores(tokenized_query)

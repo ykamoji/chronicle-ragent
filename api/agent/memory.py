@@ -64,17 +64,17 @@ class AgentMemory:
         }
         col.insert_one(doc)
 
-    def set_chat_name(self, session_id: str, chat_name: str) -> str | None:
+    def set_chat_name(self, session_id: str, chat_name: str) -> bool:
         try:
             col = mongo.get_sessions_collection()
             if col is None:
-                return None
+                return False
 
             # Only name sessions that don't have one yet
             doc = col.find_one({"session_id": session_id}, {"chat_name": 1})
             
             if not doc or doc.get("chat_name"):
-                return None
+                return False
             
             col.update_one(
                 {"session_id": session_id},
@@ -82,10 +82,10 @@ class AgentMemory:
             )
             
             logger.info(f"Chat name set for session {session_id}: '{chat_name}'")
-            return chat_name
+            return True
         except Exception as e:
             logger.error(f"Failed to generate chat name for session {session_id}: {e}")
-            return None
+            return False
 
     def delete_last_query_internals(self, session_id: str) -> int:
         """Removes the last incomplete query round from MongoDB."""

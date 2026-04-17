@@ -1,7 +1,26 @@
 {
     "Novel.pdf": {
         "short": [
-            "Explain the plot of the novel arc.",
+            "In the smuggling plot, what was the reason for the internal fight among the criminals in the warehouse?",
+            "What amount did David place as a bounty on the former chancellor Ryes?",
+            "Why did Slater choose Wagner to be the Shadow Attacker instead of a member of the royal bloodline?",
+            "What has David been keeping secret about his true identity from everyone?",
+            "What is the name of the spaceship David was boarding on his last day on Medrine?",
+            "Which character uses a purple kuret and has the ability to morph into any animal?",
+            "Why is David in therapy and who is treating him?",
+            "What happens between David and Vanessa that made Vanessa so angry with David?",
+            "When David found about Ryes interview, what did he do?",
+            "Explain the plot of the novel."
+        ],
+        "complex": [
+            "Compare Charles's account of the battle between Wagner and Charles to Vanessa's reaction. What does this discrepancy reveal about their respective biases?",
+            "Trace the identity of the 'Shadow Attacker' who preceded Blake. According to David's memories of his training with Hanson, how did this individual's treatment of Blake shape David’s long-term personal goals, and what specific 'Shadow rule' does David hold that gives him an advantage in knowing his allies' identities?",
+            "How does the specific chemical reaction of the drug 'Pesphinate' in Medrone cells serve as the primary evidence for David’s theory that the sabotage was an internal 'island officer' plot rather than a Citradel-led attack?",
+            "Explain how David cured his PTSD and how his personality has changed before and after the treatment."
+        ]
+    },
+    "Novel(Arc1).pdf": {
+        "short": [
             "Who bets against David and why in the VIP room?",
             "According to Derek, what was the outcome of his own one-on-one encounter with Charles?",
             "Explain the final tournament setup. Who is in the crowd, VIP, participants and everyone invovled in this.",
@@ -17,9 +36,45 @@
         "complex": [
             "Analyze David's decision-making process for shifting his strategy from evasion to systematically 'trimming' Charles’s tails. What three realizations did David make regarding Charles’s Kuret consumption, mental pain, and the 'habit' of healing that justified this stamina-draining approach?",
             "In the VIP room during Chapter 12, there is a conflict regarding Charles's 'killing intent.' Contrast the moral stances of Vanessa and Kafar regarding the continuation of the match. How does Ned’s prioritization of 'global live streaming' influence the final decision to let the fight proceed?",
-            "Trace the identity of the 'Shadow Attacker' who preceded Blake. According to David's memories of his training with Hanson, how did this individual's treatment of Blake shape David’s long-term personal goals, and what specific 'Shadow rule' does David hold that gives him an advantage in knowing his allies' identities?",
             "If David had chosen to use his 'Kuret Sphere' immediately instead of his 'Kuret Dome' in Chapter 5, why would that have been a tactical failure based on his subsequent discovery about the depth of Charles's 'Kuret Cocoon'?",
             "Explain the technical evolution of David’s Kuret technique during his fight with Charles. Specifically, how did his observation of Charles’s 'mini-tornado' style Kuret leads him to develop his 'vibrating threads' form, and what physical limitation did he have to overcome to stabilize it?"
+        ]
+    },
+    "Novel(Arc2).pdf": {
+        "short": [
+            "Which character is revealed to be the wife of Charles and a former 'research assistant'?",
+            "How did David and Zakerine find out the identities of the other 'Shadows'?",
+            "Why did David hide his actual house from his friends?",
+            "What is the IQ of Dr. Drew Hains?",
+            "Why did David choose to rescue Ryan from the treatment plant using stealth mode and cleanup protocols instead of alerting official Island patrols?",
+            "What was the politically sleazy plan implemented by Blake and Luther following the tournament, and how did they use deniability to pressure Citradel?",
+            "What did David reveal to Catherine about her family next day after the tournament?",
+            "Who is the first high ranking officer after the tournament to officially move to the Island?"
+        ],
+        "complex": [
+            "Explain the specific vulnerability in David's ART system that allowed Marina to summon his house without his prior authorization, and how it relates to her previous visit to the house.",
+            "Why does Dr. Drew Hains maintain a public identity as a farmer on Earth, and what physical limitation prevents her from practicing her original profession?",
+            "Explain the fight between the smugglers and David. According to David who were the most troubleseome foes in the group and how did he defeat them?",
+            "Explain David's panic attacks and what triggered them. How does he plan to overcome them before his match with Charles?"
+        ]
+    },
+    "Novel(Arc3).pdf": {
+        "short": [
+            "Which three chemical agents were identified in the poison used to sabotage the tournament?",
+            "Why did David decide to erase his own memories with a serum upon arriving on Earth?",
+            "What shocking truth did David discover about how Shadows were traditionally recruited?",
+            "What is the primary danger David faces if he does not resist the 'Ketriya' transition, as explained by Istra?",
+            "Which character or group is described as being able to open 'mini wormholes' or 'gates' for instantaneous travel?",
+            "Who were the members of the previous generation of Shadows identified by David?",
+            "Whats the radical treatment proposed by Dr. Drew. What must David pass by the end of his first day to remain eligible for the rematch.",
+            "What is the significance of the accidental death deniability contract proposed by the Heraknus?",
+            "Apart from Peter, who else were later revealed to be linked to the smuggling operation?"
+        ],
+        "complex": [
+            "Explain the 'Ketriya' transition that David is undergoing. What is the fundamental conflict between the 'Ketriya' state and the 'Shadow' identity, and what specific physiological or psychological symptoms does David experience as a result of this internal struggle?",
+            "David suspects Vanessa suffers from something that invovles with her brother. How does this specific psychological theory explain the friction between David and Vanessa?",
+            "Why did the selection of Wagner as a Shadow Attacker by Slater (Blake’s father) represent a significant departure from Shadow tradition, and what does this imply about the 'Shadow Summit' politics David discovered?",
+            "Why was the purchase of the Ewaka titanium mine and German platinum vein more tactically sound than a public refutation of Ryes' slanders?"
         ]
     }
 }

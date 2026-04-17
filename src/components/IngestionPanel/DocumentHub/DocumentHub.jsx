@@ -4,6 +4,7 @@ import { useSession } from "../../../context/SessionContext";
 import "./DocumentHub.css";
 import { API_URL } from "../../../api";
 import { LOCAL_TIMEZONE } from "../../../timezone";
+import sampleQueries from "../../../../public/sample_queries.json";
 
 const formatDate = (isoDate) => {
   if (!isoDate) return "—";
@@ -21,18 +22,15 @@ const formatDate = (isoDate) => {
   }
 };
 
-const handleDownload = async () => {
-  const response = await fetch("/Novel.pdf");
+const handleDownload = async (filename) => {
+  const response = await fetch(`/${filename}`);
   const blob = await response.blob();
-
   const url = window.URL.createObjectURL(blob);
-
   const a = document.createElement("a");
   a.href = url;
-  a.download = "Novel.pdf";
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
-
   a.remove();
   window.URL.revokeObjectURL(url);
 };
@@ -59,6 +57,7 @@ const StatCard = ({ icon, label, value }) => (
 
 export default function DocumentHub() {
   const [uploadStatus, setUploadStatus] = useState("");
+  const [viewingPdf, setViewingPdf] = useState(null);
   const { sessionId, setSessionId, setCurrentSummaries,
     ingestionProgress, setIngestionProgress, setActiveIngestionTab, sessionList, setSessionList, sessionData, setSessionData } = useSession();
   const ingestion_completed = useRef(false)
@@ -195,20 +194,11 @@ export default function DocumentHub() {
     }
   };
 
-  const handleSampleUpload = async () => {
-    const response = await fetch("/Novel.pdf");
+  const handleSampleUpload = async (filename) => {
+    const response = await fetch(`/${filename}`);
     const blob = await response.blob();
-
-    const file = new File([blob], "Novel.pdf", {
-      type: "application/pdf",
-    });
-
-    const fakeEvent = {
-      target: {
-        files: [file],
-      },
-    };
-
+    const file = new File([blob], filename, { type: "application/pdf" });
+    const fakeEvent = { target: { files: [file] } };
     handleFileUpload(fakeEvent);
   };
 
@@ -431,35 +421,48 @@ export default function DocumentHub() {
               <p>📄 Click to Upload Document</p>
               <span style={{ fontSize: "0.8rem" }}>Supports: PDF, TXT</span>
             </div>
-            <div style={{ textAlign: "center", marginTop: "10px" }}>OR</div>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "15px" }}>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                width="100"
-                height="100"
-              >
-                <path
-                  d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"
-                  fill="#e53935"
-                />
-                <path d="M14 2v6h6" fill="#ef5350" />
-                <text x="6.5" y="17" fontSize="6" fontFamily="Arial, sans-serif" fill="white">PDF</text>
-              </svg>
-              <span style={{ fontSize: "0.8rem", textAlign: "center" }}>Novel.pdf</span>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
-              <button
-                type="button"
-                style={{ width: "50%", margin: "0 auto", borderRadius: "0" }}
-                onClick={handleSampleUpload}
-              >Upload Sample Book</button>
-
-              <button
-                type="button"
-                style={{ width: "50%", margin: "0 auto", borderRadius: "0" }}
-                onClick={handleDownload}
-              >Download</button>
+            <div style={{ textAlign: "center", marginTop: "10px", marginBottom: "10px", fontSize: "0.8rem", color: "var(--text-secondary)" }}>OR use a sample</div>
+            <div className="pdf-picker">
+              {Object.keys(sampleQueries).map((filename) => (
+                <div key={filename} className="pdf-group">
+                  <button
+                    className="pdf-btn"
+                    type="button"
+                    onClick={() => handleSampleUpload(filename)}
+                    title={`Ingest ${filename}`}
+                    style={{ background: "none", display: "flex", flexDirection: "column", border: "none", cursor: "pointer", padding: 0 }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="80" height="80">
+                      <path d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#e53935" />
+                      <path d="M14 2v6h6" fill="#ef5350" />
+                      <text x="6.5" y="17" fontSize="6" fontFamily="Arial, sans-serif" fill="white">PDF</text>
+                    </svg>
+                    <span style={{ fontSize: "0.80rem", color: "var(--text-secondary)", wordBreak: "break-word", lineHeight: 1.3 }}>
+                      {filename}
+                    </span>
+                  </button>
+                  <div style={{ display: "flex", gap: "4px" }}>
+                    <button
+                      className="pdf-btn pdf-btn-mini"
+                      type="button"
+                      onClick={() => handleDownload(filename)}
+                      title="Download"
+                      style={{ border: "1px solid var(--panel-glass-border, rgba(0,0,0,0.1))", cursor: "pointer", padding: "3px 5px", display: "flex" }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+                    </button>
+                    <button
+                      className="pdf-btn pdf-btn-mini"
+                      type="button"
+                      onClick={() => setViewingPdf(filename)}
+                      title="Preview"
+                      style={{ border: "1px solid var(--panel-glass-border, rgba(0,0,0,0.1))", cursor: "pointer", padding: "3px 5px", display: "flex" }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </>
         ) : (<>
@@ -500,6 +503,49 @@ export default function DocumentHub() {
           </div>
         )
       }
+
+      {viewingPdf && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={() => setViewingPdf(null)}
+        >
+          <div
+            style={{ width: "min(900px, 92vw)", height: "88vh", background: "#fff", overflow: "hidden", display: "flex", flexDirection: "column" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", borderBottom: "1px solid #e5e7eb", background: "#f9fafb", flexShrink: 0 }}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" style={{ flexShrink: 0 }}>
+                <path d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#e53935" />
+                <path d="M14 2v6h6" fill="#ef5350" />
+                <text x="6.5" y="17" fontSize="6" fontFamily="Arial, sans-serif" fill="white">PDF</text>
+              </svg>
+              <span style={{ flex: 1, fontSize: "13px", fontWeight: "500", color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{viewingPdf}</span>
+              <button
+                type="button"
+                onClick={() => handleDownload(viewingPdf)}
+                title="Download"
+                style={{ background: "none", border: "1px solid #e5e7eb", cursor: "pointer", padding: "5px 8px", display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "#374151" }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+                Download
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewingPdf(null)}
+                title="Close"
+                style={{ background: "none", border: "1px solid #e5e7eb", cursor: "pointer", padding: "5px 8px", display: "flex", alignItems: "center", color: "#374151" }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+            <iframe
+              src={`/${viewingPdf}`}
+              style={{ flex: 1, border: "none", display: "block" }}
+              title={viewingPdf}
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -2,8 +2,8 @@ name: Chronicle Health Trigger
 
 on:
   schedule:
-    # Using specific minutes to avoid "top of the hour" traffic
-    - cron: '3,13,23,33,43,53 * * * *'
+    # Only run once per hour using a lock or timestamp
+    - cron: '37 * * * *'
   # Allows manual triggering from the Actions tab
   workflow_dispatch:
 
@@ -14,5 +14,8 @@ jobs:
     steps:
       - name: GET Health Check
         run: |
-          curl -f --retry 3 --max-time 60 "https://chronicle-mcp.onrender.com/health"
+          curl -f --retry 3 --max-time 60 \
+          -H "X-Trigger-Source: github-actions" \
+          -H "User-Agent: Chronicle-HealthCheck/GitHubActions" \
+          "https://chronicle-mcp.onrender.com/health"
           curl -f --retry 3 --max-time 60 "https://chronicle-ragent.onrender.com"
